@@ -440,3 +440,9 @@ export function usePolling<T>(
 
   return { data, loading, error };
 }
+
+// ============================================================================
+// REALTIME TRACKING HOOK
+// ============================================================================
+
+export { useRealtimeTracking } from './use-realtime-tracking';

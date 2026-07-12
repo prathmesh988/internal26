@@ -1,318 +1,365 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useMemo } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { StatusBadge, PriorityBadge, MetricCard, EmptyState } from '@/components/shared';
-import { PageTransition } from '@/components/animated';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { SiteHeader } from '@/components/site-header';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { StatusBadge, PriorityBadge } from '@/components/shared';
 import { useComplaints } from '@/hooks';
-import { FileText, CheckCircle, Clock, AlertCircle, Eye, Search } from 'lucide-react';
-import { formatDate, calculateComplaintAge, getComplaintSLA } from '@/lib/utils-helpers';
+import {
+  FileText,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Search,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react';
+import {
+  formatDate,
+  getComplaintSLA,
+  getDaysFromNow,
+} from '@/lib/utils-helpers';
+
+const statusStyles: Record<string, string> = {
+  OPEN: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  IN_PROGRESS: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  RESOLVED: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  ESCALATED: 'bg-destructive/10 text-destructive border-destructive/20',
+  CLOSED: 'bg-muted text-muted-foreground border-border',
+};
+
+// Realistic mock data of logged-in user's complaints
+const localMyComplaints = [
+  { id: 'CMP-2081', title: 'Overflowing community dump bin', category: 'OVERFLOW', wardCode: 'W01', priority: 'CRITICAL', status: 'IN_PROGRESS', createdAt: '2026-07-09T14:15:00Z', desc: 'Garbage bin at the corner is full and spilling on street.', assignedToWorkerName: 'Rajesh Patil' },
+  { id: 'CMP-2059', title: 'Missed garbage pickup on lane 3', category: 'MISSED_PICKUP', wardCode: 'W05', priority: 'MEDIUM', status: 'OPEN', createdAt: '2026-07-08T10:20:00Z', desc: 'Collection truck did not visit our building this morning.', assignedToWorkerName: null },
+  { id: 'CMP-1999', title: 'Construction debris dumped illegally', category: 'ILLEGAL_DUMPING', wardCode: 'W04', priority: 'LOW', status: 'CLOSED', createdAt: '2026-07-06T13:00:00Z', desc: 'Debris dumped next to local park wall.', assignedToWorkerName: 'Suresh Kumar' },
+  { id: 'CMP-1955', title: 'Commercial shop organic waste dumping', category: 'SEGREGATION', wardCode: 'W02', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-07-05T09:12:00Z', desc: 'Wet and dry waste mixed by hotel kitchen.', assignedToWorkerName: 'Inspector R. Sen' },
+  { id: 'CMP-1940', title: 'Monthly bulky trash pickup missed', category: 'MISSED_PICKUP', wardCode: 'W01', priority: 'MEDIUM', status: 'RESOLVED', createdAt: '2026-07-04T11:30:00Z', desc: 'Bulk items left on road corner.', assignedToWorkerName: 'Rajesh Shinde' },
+  { id: 'CMP-1933', title: 'Leaking garbage bags spill on sidewalk', category: 'SPILL', wardCode: 'W03', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-07-04T09:00:00Z', desc: 'Foul liquid leaking onto pavement.', assignedToWorkerName: 'Ramesh Chawla' },
+  { id: 'CMP-1899', title: 'Non-segregated waste mixing', category: 'SEGREGATION', wardCode: 'W01', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-07-02T09:00:00Z', desc: 'Apartment complex garbage mixed.', assignedToWorkerName: 'Rajesh Shinde' }
+];
 
 export default function MyComplaintsPage() {
-  const [filters, setFilters] = useState<any>({});
-  const [page, setPage] = useState(1);
-  const { data, loading } = useComplaints(filters, page, 10);
+  const [complaints, setComplaints] = useState(localMyComplaints);
+  const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const complaints = data?.data || [];
-  const total = data?.total || 0;
+  // Filters State
+  const [filters, setFilters] = useState<any>({
+    status: 'ALL',
+    priority: 'ALL',
+    category: 'ALL',
+  });
 
-  const open = complaints.filter((c: any) => c.status === 'OPEN').length;
-  const inProgress = complaints.filter((c: any) => c.status === 'IN_PROGRESS').length;
-  const resolved = complaints.filter((c: any) => c.status === 'RESOLVED').length;
+  const open = complaints.filter((c) => c.status === 'OPEN' || c.status === 'IN_PROGRESS').length;
+  const inProgress = complaints.filter((c) => c.status === 'IN_PROGRESS').length;
+  const resolved = complaints.filter((c) => c.status === 'RESOLVED').length;
+
+  const statCards = [
+    { label: 'Total Filed', value: complaints.length, trend: 'All time', up: true, icon: FileText },
+    { label: 'Open / Active', value: open, trend: 'Awaiting completion', up: false, icon: AlertCircle },
+    { label: 'In Progress', value: inProgress, trend: 'Being handled', up: true, icon: Clock },
+    { label: 'Resolved', value: resolved, trend: 'Completed', up: true, icon: CheckCircle },
+  ];
+
+  // Dynamic filter application
+  const filteredList = useMemo(() => {
+    return complaints.filter((c) => {
+      if (filters.status !== 'ALL' && c.status !== filters.status) return false;
+      if (filters.priority !== 'ALL' && c.priority !== filters.priority) return false;
+      if (filters.category !== 'ALL' && c.category !== filters.category) return false;
+      return true;
+    });
+  }, [complaints, filters]);
+
+  // Master list with text search applied
+  const masterList = useMemo(() => {
+    return complaints.filter((c) => {
+      const match = searchTerm.toLowerCase();
+      return (
+        c.id.toLowerCase().includes(match) ||
+        c.title.toLowerCase().includes(match) ||
+        c.category.toLowerCase().includes(match)
+      );
+    });
+  }, [complaints, searchTerm]);
 
   return (
-    <PageTransition>
-      <div className="space-y-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">My Complaints</h1>
-          <p className="text-slate-600">View and track all your filed complaints</p>
-        </motion.div>
+    <>
+      <SiteHeader
+        title="My Complaints"
+        actionLabel="File New"
+        onAction={() => window.location.href = '/citizen/file-complaint'}
+      />
 
-        {/* Summary */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-4 gap-4"
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: { opacity: 0 },
-            show: {
-              opacity: 1,
-              transition: {
-                staggerChildren: 0.1,
-              },
-            },
-          }}
-        >
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, y: 20 },
-              show: { opacity: 1, y: 0 },
-            }}
-          >
-            <MetricCard
-              title="Total"
-              value={total}
-              icon={<FileText className="w-5 h-5 text-red-500" />}
-            />
-          </motion.div>
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, y: 20 },
-              show: { opacity: 1, y: 0 },
-            }}
-          >
-            <MetricCard
-              title="Open"
-              value={open}
-              icon={<AlertCircle className="w-5 h-5 text-yellow-500" />}
-            />
-          </motion.div>
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, y: 20 },
-              show: { opacity: 1, y: 0 },
-            }}
-          >
-            <MetricCard
-              title="In Progress"
-              value={inProgress}
-              icon={<Clock className="w-5 h-5 text-blue-500" />}
-            />
-          </motion.div>
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, y: 20 },
-              show: { opacity: 1, y: 0 },
-            }}
-          >
-            <MetricCard
-              title="Resolved"
-              value={resolved}
-              icon={<CheckCircle className="w-5 h-5 text-green-500" />}
-            />
-          </motion.div>
-        </motion.div>
+      <div className="flex flex-1 flex-col">
+        <div className="flex flex-col gap-6 py-6 px-4 lg:px-6">
 
-        {/* Filters */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Filter</CardTitle>
-            </CardHeader>
-            <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm text-slate-600 mb-2 block">Status</label>
-              <Select onValueChange={(value) => setFilters({ ...filters, status: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="OPEN">Open</SelectItem>
-                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                  <SelectItem value="RESOLVED">Resolved</SelectItem>
-                  <SelectItem value="CLOSED">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm text-slate-600 mb-2 block">Priority</label>
-              <Select onValueChange={(value) => setFilters({ ...filters, priority: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Priorities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="CRITICAL">Critical</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm text-slate-600 mb-2 block">Category</label>
-              <Select onValueChange={(value) => setFilters({ ...filters, category: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MISSED_PICKUP">Missed Pickup</SelectItem>
-                  <SelectItem value="OVERFLOW">Overflow</SelectItem>
-                  <SelectItem value="SPILL">Spillage</SelectItem>
-                  <SelectItem value="ILLEGAL_DUMPING">Illegal Dumping</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {statCards.map((card) => (
+              <Card key={card.label} className="bg-gradient-to-br from-card to-muted/30">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-sm font-medium">{card.label}</CardDescription>
+                    <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      card.up ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
+                    }`}>
+                      {card.up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+                      {card.trend}
+                    </span>
+                  </div>
+                  <CardTitle className="text-3xl font-bold tabular-nums mt-2">{card.value}</CardTitle>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
-          <Button
-            onClick={() => {
-              setFilters({});
-              setPage(1);
-            }}
-            variant="outline"
-            className="mt-4"
-          >
-            Reset Filters
-          </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
 
-        {/* Complaints List */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Complaints</CardTitle>
-            </CardHeader>
-            <CardContent>
-          {loading ? (
-            <div className="text-center py-8 text-slate-500">Loading...</div>
-          ) : complaints.length === 0 ? (
-            <EmptyState
-              icon={<Search className="w-12 h-12 text-slate-400" />}
-              title="No complaints found"
-              description="Try adjusting your filters or file a new complaint"
-            />
-          ) : (
-            <div className="space-y-3">
-              {complaints.map((complaint: any) => {
-                const age = calculateComplaintAge(complaint.createdAt);
-                const sla = getComplaintSLA(complaint.priority);
-                const isOverdue = age > sla;
+          {/* Replaced standalone layout with Tab selection block */}
+          <Tabs defaultValue="filter-complaints" className="w-full space-y-4">
+            <TabsList>
+              <TabsTrigger value="filter-complaints">Filter Complaints</TabsTrigger>
+              <TabsTrigger value="master-registry">Your Complaints</TabsTrigger>
+            </TabsList>
 
-                return (
-                  <Dialog key={complaint.id}>
-                    <DialogTrigger asChild>
-                      <div className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-slate-900">{complaint.title}</h3>
-                            <p className="text-sm text-slate-600 mt-1">{complaint.description}</p>
-                          </div>
-                          <div className="flex gap-2 ml-4">
-                            <StatusBadge status={complaint.status} />
-                            <PriorityBadge priority={complaint.priority} />
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-slate-500">
-                          <span>Filed on {formatDate(complaint.createdAt)}</span>
-                          {isOverdue && complaint.status !== 'RESOLVED' && (
-                            <Badge className="bg-red-100 text-red-800">Overdue</Badge>
-                          )}
-                        </div>
-                      </div>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>{complaint.title}</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm text-slate-600 font-medium">Description</label>
-                          <p className="text-sm text-slate-900 mt-1">{complaint.description}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-sm text-slate-600 font-medium">Status</label>
-                            <StatusBadge status={complaint.status} />
-                          </div>
-                          <div>
-                            <label className="text-sm text-slate-600 font-medium">Priority</label>
-                            <PriorityBadge priority={complaint.priority} />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-sm text-slate-600 font-medium">Ward</label>
-                            <p className="text-sm text-slate-900 mt-1">{complaint.wardCode}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm text-slate-600 font-medium">Category</label>
-                            <Badge variant="secondary">{complaint.category}</Badge>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm text-slate-600 font-medium">Filed On</label>
-                          <p className="text-sm text-slate-900 mt-1">
-                            {formatDate(complaint.createdAt, 'long')}
-                          </p>
-                        </div>
-                        {complaint.assignedToWorkerName && (
-                          <div>
-                            <label className="text-sm text-slate-600 font-medium">Assigned To</label>
-                            <p className="text-sm text-slate-900 mt-1">{complaint.assignedToWorkerName}</p>
-                          </div>
-                        )}
-                        {complaint.status === 'RESOLVED' && (
-                          <div className="p-3 bg-green-50 rounded-lg">
-                            <p className="text-sm text-green-800">
-                              ✓ This complaint has been resolved. Thank you for your feedback!
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                );
-              })}
-            </div>
-          )}
+            {/* Filter Complaints Tab */}
+            <TabsContent value="filter-complaints" className="space-y-4">
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base">Filter Criteria</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Status</Label>
+                      <Select
+                        value={filters.status}
+                        onValueChange={(val) => setFilters((prev: any) => ({ ...prev, status: val }))}
+                      >
+                        <SelectTrigger><SelectValue placeholder="All Statuses" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">All Statuses</SelectItem>
+                          <SelectItem value="OPEN">Open</SelectItem>
+                          <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                          <SelectItem value="RESOLVED">Resolved</SelectItem>
+                          <SelectItem value="CLOSED">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-          {/* Pagination */}
-          {Math.ceil(total / 10) > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                Previous
-              </Button>
-              <div className="flex items-center gap-2">
-                {Array.from({ length: Math.min(3, Math.ceil(total / 10)) }, (_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={page === pageNum ? 'default' : 'outline'}
-                      onClick={() => setPage(pageNum)}
-                    >
-                      {pageNum}
+                    <div className="space-y-1.5">
+                      <Label>Priority</Label>
+                      <Select
+                        value={filters.priority}
+                        onValueChange={(val) => setFilters((prev: any) => ({ ...prev, priority: val }))}
+                      >
+                        <SelectTrigger><SelectValue placeholder="All Priorities" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">All Priorities</SelectItem>
+                          <SelectItem value="LOW">Low</SelectItem>
+                          <SelectItem value="MEDIUM">Medium</SelectItem>
+                          <SelectItem value="HIGH">High</SelectItem>
+                          <SelectItem value="CRITICAL">Critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>Category</Label>
+                      <Select
+                        value={filters.category}
+                        onValueChange={(val) => setFilters((prev: any) => ({ ...prev, category: val }))}
+                      >
+                        <SelectTrigger><SelectValue placeholder="All Categories" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">All Categories</SelectItem>
+                          <SelectItem value="MISSED_PICKUP">Missed Pickup</SelectItem>
+                          <SelectItem value="OVERFLOW">Overflow</SelectItem>
+                          <SelectItem value="SPILL">Spillage</SelectItem>
+                          <SelectItem value="ILLEGAL_DUMPING">Illegal Dumping</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <Button variant="outline" size="sm" onClick={() => setFilters({ status: 'ALL', priority: 'ALL', category: 'ALL' })}>
+                      Reset Filters
                     </Button>
-                  );
-                })}
-              </div>
-              <Button
-                variant="outline"
-                disabled={page === Math.ceil(total / 10)}
-                onClick={() => setPage(page + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-          </CardContent>
-        </Card>
-        </motion.div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Filtered list Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Filtered Results</CardTitle>
+                  <CardDescription>Found {filteredList.length} complaints matching filters</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {filteredList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-2">
+                      <Search className="size-8 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No matching complaints found</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {filteredList.map((complaint) => {
+                        const ageInHours = getDaysFromNow(complaint.createdAt) * 24;
+                        const sla = getComplaintSLA(complaint.priority);
+                        const isOverdue = ageInHours > sla;
+
+                        return (
+                          <Dialog key={complaint.id}>
+                            <DialogTrigger asChild>
+                              <div className="py-4 hover:bg-muted/30 -mx-6 px-6 cursor-pointer transition-colors" onClick={() => setSelectedComplaint(complaint)}>
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <p className="font-medium text-sm truncate">{complaint.title}</p>
+                                      {isOverdue && complaint.status !== 'RESOLVED' && (
+                                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-destructive/10 text-destructive border border-destructive/20">
+                                          Overdue
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground line-clamp-1">{complaint.desc}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <PriorityBadge priority={complaint.priority as any} />
+                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusStyles[complaint.status] || ''}`}>
+                                      {complaint.status.replace(/_/g, ' ')}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Filed {formatDate(complaint.createdAt)} · Ward {complaint.wardCode}
+                                </p>
+                              </div>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>{selectedComplaint?.title}</DialogTitle>
+                              </DialogHeader>
+                              {selectedComplaint && (
+                                <div className="space-y-4 pt-1">
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Detailed description</p>
+                                    <p className="text-sm text-foreground/80">{selectedComplaint.desc}</p>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
+                                      <StatusBadge status={selectedComplaint.status} />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Priority</p>
+                                      <PriorityBadge priority={selectedComplaint.priority} />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </DialogContent>
+                          </Dialog>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Master Registry Tab */}
+            <TabsContent value="master-registry" className="space-y-4">
+              <Card>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
+                  <div>
+                    <CardTitle>Your Complete Complaints History</CardTitle>
+                    <CardDescription>Master directory logs containing all submissions</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2 max-w-xs w-full">
+                    <Search className="size-4 text-muted-foreground absolute ml-3" />
+                    <Input
+                      placeholder="Search title, ID..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {masterList.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">No complaints found</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Complaint ID</TableHead>
+                            <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Title</TableHead>
+                            <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Category</TableHead>
+                            <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</TableHead>
+                            <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Filed Date</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {masterList.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
+                              <TableCell className="font-medium">{item.title}</TableCell>
+                              <TableCell className="capitalize text-muted-foreground">{item.category.toLowerCase().replace(/_/g, ' ')}</TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusStyles[item.status] || ''}`}>
+                                  {item.status.replace(/_/g, ' ')}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+        </div>
       </div>
-    </PageTransition>
+    </>
   );
 }

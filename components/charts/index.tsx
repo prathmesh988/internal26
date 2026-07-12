@@ -350,7 +350,7 @@ export function StackedBarChart({
                 stackId="a"
                 fill={item.color}
                 name={item.name}
-                radius={idx === 0 ? [8, 8, 0, 0] : []}
+                radius={idx === 0 ? [8, 8, 0, 0] : undefined}
               />
             ))}
           </BarChart>

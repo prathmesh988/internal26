@@ -2,362 +2,287 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { StatusBadge, PriorityBadge } from '@/components/shared';
-import { useNotifications, useComplaints } from '@/hooks';
+import { SiteHeader } from '@/components/site-header';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  FileText,
-  AlertCircle,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   Award,
-  Bell,
-  CheckCircle2,
+  AlertCircle,
   TrendingUp,
+  Bell,
   ArrowUp,
   ArrowDown,
-  Eye,
+  CheckCircle2,
+  Clock,
+  Zap,
 } from 'lucide-react';
-import { formatDate, getTimeAgo } from '@/lib/utils-helpers';
-import { TrendChart } from '@/components/charts';
+
+// Status badge styling function to ensure subtle, non-oversaturated colors
+function getStatusBadgeClass(status: string) {
+  switch (status.toUpperCase()) {
+    case 'PENDING':
+      return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
+    case 'UNDER REVIEW':
+    case 'UNDER_REVIEW':
+      return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+    case 'ASSIGNED':
+      return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
+    case 'IN PROGRESS':
+    case 'IN_PROGRESS':
+      return 'bg-sky-500/10 text-sky-600 border-sky-500/20';
+    case 'RESOLVED':
+      return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+    case 'CLOSED':
+      return 'bg-muted text-muted-foreground border-border';
+    case 'REOPENED':
+      return 'bg-pink-500/10 text-pink-600 border-pink-500/20';
+    default:
+      return 'bg-secondary text-secondary-foreground';
+  }
+}
+
+function getPriorityBadgeClass(priority: string) {
+  switch (priority.toUpperCase()) {
+    case 'LOW':
+      return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+    case 'MEDIUM':
+      return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
+    case 'HIGH':
+      return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
+    case 'CRITICAL':
+      return 'bg-destructive/10 text-destructive border-destructive/20';
+    default:
+      return 'bg-secondary text-secondary-foreground';
+  }
+}
+
+// 20 rows of mock complaints for the "Reading Complaints" tab
+const allMockComplaints = [
+  { id: 'CMP-2094', category: 'Missed Pickup', ward: 'W03', priority: 'Medium', status: 'Pending', assignedTo: 'Amit Shah', created: '2026-07-10 09:30', updated: '5 min ago' },
+  { id: 'CMP-1948', category: 'Overflowing Bins', ward: 'W01', priority: 'Critical', status: 'In Progress', assignedTo: 'Rajesh Patil', created: '2026-07-09 14:15', updated: '2 hours ago' },
+  { id: 'CMP-1839', category: 'Illegal Dumping', ward: 'W04', priority: 'High', status: 'Assigned', assignedTo: 'Suresh Kumar', created: '2026-07-09 11:00', updated: '4 hours ago' },
+  { id: 'CMP-1728', category: 'Spillage', ward: 'W02', priority: 'Low', status: 'Resolved', assignedTo: 'Vikram Singh', created: '2026-07-08 16:45', updated: '1 day ago' },
+  { id: 'CMP-1650', category: 'Missed Pickup', ward: 'W05', priority: 'Medium', status: 'Under Review', assignedTo: 'Unassigned', created: '2026-07-08 10:20', updated: '1 day ago' },
+  { id: 'CMP-1598', category: 'Overflowing Bins', ward: 'W06', priority: 'Critical', status: 'Resolved', assignedTo: 'Ramesh Chawla', created: '2026-07-07 13:10', updated: '2 days ago' },
+  { id: 'CMP-1432', category: 'Illegal Dumping', ward: 'W01', priority: 'High', status: 'Closed', assignedTo: 'Karan Malhotra', created: '2026-07-06 08:30', updated: '3 days ago' },
+  { id: 'CMP-1322', category: 'Segregation Issue', ward: 'W03', priority: 'Low', status: 'Assigned', assignedTo: 'Arun Yadav', created: '2026-07-05 15:50', updated: '4 days ago' },
+  { id: 'CMP-1299', category: 'Missed Pickup', ward: 'W02', priority: 'Medium', status: 'Reopened', assignedTo: 'Vikram Singh', created: '2026-07-05 09:12', updated: '4 days ago' },
+  { id: 'CMP-1104', category: 'Spillage', ward: 'W04', priority: 'Low', status: 'Closed', assignedTo: 'Suresh Kumar', created: '2026-07-04 11:30', updated: '5 days ago' },
+  { id: 'CMP-0987', category: 'Overflowing Bins', ward: 'W05', priority: 'High', status: 'Resolved', assignedTo: 'Rajesh Patil', created: '2026-07-03 14:00', updated: '6 days ago' },
+  { id: 'CMP-0876', category: 'Illegal Dumping', ward: 'W06', priority: 'Medium', status: 'Resolved', assignedTo: 'Ramesh Chawla', created: '2026-07-02 10:45', updated: '1 week ago' },
+  { id: 'CMP-0765', category: 'Segregation Issue', ward: 'W02', priority: 'Low', status: 'Closed', assignedTo: 'Vikram Singh', created: '2026-07-01 16:20', updated: '1 week ago' },
+  { id: 'CMP-0654', category: 'Missed Pickup', ward: 'W01', priority: 'Medium', status: 'Resolved', assignedTo: 'Rajesh Patil', created: '2026-06-29 09:00', updated: '1 week ago' },
+  { id: 'CMP-0543', category: 'Spillage', ward: 'W03', priority: 'Low', status: 'Resolved', assignedTo: 'Arun Yadav', created: '2026-06-28 15:10', updated: '1 week ago' }
+];
+
+// 15 rows of mock complaints for the logged-in user (Rajesh Kumar)
+const myMockComplaints = [
+  { id: 'CMP-1948', category: 'Overflowing Bins', status: 'In Progress', createdOn: '2026-07-09 14:15', lastActivity: 'Worker dispatched', estResolution: 'Today, 18:00' },
+  { id: 'CMP-1650', category: 'Missed Pickup', status: 'Under Review', createdOn: '2026-07-08 10:20', lastActivity: 'Assigned to Ward 05 Inspector', estResolution: 'Tomorrow, 12:00' },
+  { id: 'CMP-1432', category: 'Illegal Dumping', status: 'Closed', createdOn: '2026-07-06 08:30', lastActivity: 'Site cleared by cleanup crew', estResolution: 'Resolved' },
+  { id: 'CMP-1299', category: 'Missed Pickup', status: 'Reopened', createdOn: '2026-07-05 09:12', lastActivity: 'Reopened due to missed lane', estResolution: 'Today, 17:00' },
+  { id: 'CMP-0654', category: 'Missed Pickup', status: 'Resolved', createdOn: '2026-06-29 09:00', lastActivity: 'Resolved by replacement truck', estResolution: 'Resolved' },
+  { id: 'CMP-0321', category: 'Overflowing Bins', status: 'Closed', createdOn: '2026-06-20 11:45', lastActivity: 'Bin replaced & emptied', estResolution: 'Resolved' },
+  { id: 'CMP-0104', category: 'Spillage', status: 'Resolved', createdOn: '2026-06-15 14:30', lastActivity: 'Cleared by local sweeper', estResolution: 'Resolved' }
+];
 
 export default function CitizenDashboard() {
-  const { data: notificationsData } = useNotifications('citizen-001', 1, 5);
-  const { data: complaintsData } = useComplaints({}, 1, 10);
+  const router = useRouter();
 
-  // Mock citizen data
   const citizenData = {
-    id: 'citizen-001',
     name: 'Rajesh Kumar',
-    email: 'rajesh@example.com',
     rewardPoints: 285,
-    completedSurveys: 8,
-    complaintsFiled: 5,
+    complaintsFiled: 7,
     complianceScore: 92,
+    unreadNotifications: 2
   };
 
-  const notifications = notificationsData?.data || [];
-  const myComplaints = (complaintsData?.data || []).slice(0, 5);
-  const unresolvedComplaints = myComplaints.filter((c: any) => !['RESOLVED', 'CLOSED'].includes(c.status)).length;
-
-  // Mock reward history
-  const recentRewards = [
-    { date: new Date(), reason: 'Completed segregation survey', points: 50 },
-    { date: new Date(Date.now() - 86400000), reason: 'Proper waste segregation', points: 25 },
-    { date: new Date(Date.now() - 172800000), reason: 'Participated in cleanup drive', points: 100 },
-  ];
-
-  // Chart data
-  const pointsTrendData = Array.from({ length: 30 }, (_, i) => ({
-    date: formatDate(new Date(Date.now() - (30 - i) * 86400000).toISOString()),
-    value: Math.floor(i * 8) + 100,
-  }));
-
-  const recentActivity = [
-    {
-      id: '1',
-      title: 'Complaint Status Updated',
-      description: 'Your overflow complaint has been assigned to a worker',
-      timestamp: new Date().toISOString(),
-      type: 'update',
-    },
-    {
-      id: '2',
-      title: 'Reward Earned!',
-      description: 'You earned 50 points for completing a segregation survey',
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      type: 'reward',
-    },
-    {
-      id: '3',
-      title: 'Pickup Reminder',
-      description: 'Waste collection scheduled for tomorrow at 8 AM in your ward',
-      timestamp: new Date(Date.now() - 86400000).toISOString(),
-      type: 'info',
-    },
-    {
-      id: '4',
-      title: 'Complaint Resolved',
-      description: 'Your spillage complaint has been successfully resolved',
-      timestamp: new Date(Date.now() - 172800000).toISOString(),
-      type: 'resolved',
-    },
-  ];
-
-  // Metric card component for consistent styling
-  const MetricCard = ({ title, value, icon, trend, subtext }: any) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-muted-foreground">{title}</p>
-              <p className="text-2xl font-bold text-foreground mt-2">{value}</p>
-              {subtext && <p className="text-xs text-muted-foreground mt-2">{subtext}</p>}
-            </div>
-            <div className="text-primary/80 ml-4">{icon}</div>
-          </div>
-          {trend && (
-            <div className="flex items-center gap-2 text-xs">
-              {trend.isPositive ? (
-                <ArrowUp className="w-4 h-4 text-green-600" />
-              ) : (
-                <ArrowDown className="w-4 h-4 text-red-600" />
-              )}
-              <span className={trend.isPositive ? 'text-green-600' : 'text-red-600'}>
-                {trend.isPositive ? '+' : '-'}{Math.abs(trend.value)}%
-              </span>
-              <span className="text-muted-foreground">vs last month</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="space-y-2"
-      >
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, {citizenData.name}</p>
-      </motion.div>
+    <>
+      <SiteHeader
+        title="My Dashboard"
+        actionLabel="File Complaint"
+        onAction={() => router.push('/citizen/file-complaint')}
+      />
 
-      {/* Metric Cards Grid */}
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-        initial="hidden"
-        animate="show"
-        variants={{
-          hidden: { opacity: 0 },
-          show: {
-            opacity: 1,
-            transition: {
-              staggerChildren: 0.1,
-            },
-          },
-        }}
-      >
-        <MetricCard
-          title="Reward Points"
-          value={citizenData.rewardPoints}
-          icon={<Award className="w-8 h-8" />}
-          trend={{ value: 12, isPositive: true }}
-          subtext="Available for redemption"
-        />
-        <MetricCard
-          title="Complaints Filed"
-          value={citizenData.complaintsFiled}
-          icon={<FileText className="w-8 h-8" />}
-          trend={{ value: 2, isPositive: true }}
-          subtext={`${unresolvedComplaints} unresolved`}
-        />
-        <MetricCard
-          title="Compliance Score"
-          value={`${citizenData.complianceScore}%`}
-          icon={<CheckCircle2 className="w-8 h-8" />}
-          trend={{ value: 8, isPositive: true }}
-          subtext="Excellent rating"
-        />
-        <MetricCard
-          title="Surveys Completed"
-          value={citizenData.completedSurveys}
-          icon={<Bell className="w-8 h-8" />}
-          subtext="Keep participating!"
-        />
-      </motion.div>
+      <div className="flex flex-1 flex-col">
+        <div className="flex flex-col gap-6 py-6 px-4 lg:px-6">
 
-      {/* Points Trend Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <TrendChart
-            data={pointsTrendData}
-            title="Reward Points Trend"
-            description="Last 30 days"
-            lineColor="hsl(var(--primary))"
-            height={250}
-          />
-        </div>
-
-        {/* Recent Rewards */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-foreground">Recent Rewards</CardTitle>
-            <CardDescription>Your latest earnings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {recentRewards.map((reward, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-              >
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{reward.reason}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatDate(reward.date.toISOString())}
-                  </p>
-                </div>
-                <Badge className="ml-2 font-bold">+{reward.points}</Badge>
-              </div>
+          {/* Stat Cards with Highlight Pill Badges */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {[
+              {
+                title: 'Reward Points',
+                value: citizenData.rewardPoints,
+                sub: 'Keep participating to earn more',
+                trend: '+50 this week',
+                up: true,
+                icon: Award,
+                color: 'text-amber-500',
+              },
+              {
+                title: 'Complaints Filed',
+                value: citizenData.complaintsFiled,
+                sub: '2 active complaints',
+                trend: '+1 this month',
+                up: true,
+                icon: AlertCircle,
+                color: 'text-destructive',
+              },
+              {
+                title: 'Compliance Score',
+                value: `${citizenData.complianceScore}%`,
+                sub: 'Based on activity & surveys',
+                trend: '+3% vs last month',
+                up: true,
+                icon: TrendingUp,
+                color: 'text-emerald-500',
+              },
+              {
+                title: 'Notifications',
+                value: citizenData.unreadNotifications,
+                sub: 'Unread alerts and updates',
+                trend: '2 new alerts',
+                up: true,
+                icon: Bell,
+                color: 'text-primary',
+              },
+            ].map((card) => (
+              <Card key={card.title} className="bg-gradient-to-br from-card to-muted/30 shadow-sm border">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-sm font-medium">{card.title}</CardDescription>
+                    <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      card.up ? 'bg-emerald-500/15 text-emerald-600 dark:bg-emerald-400/20 dark:text-emerald-400' : 'bg-destructive/10 text-destructive'
+                    }`}>
+                      {card.up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+                      {card.trend}
+                    </span>
+                  </div>
+                  <CardTitle className="text-3xl font-bold tabular-nums mt-2">{card.value}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground mt-0.5">{card.sub}</p>
+                </CardContent>
+              </Card>
             ))}
-            <Button variant="outline" className="w-full mt-4">
-              View All
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      {/* Quick Actions & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold text-foreground">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Link href="/citizen/file-complaint" className="block">
-              <Button className="w-full justify-start" size="sm">
-                <FileText className="w-4 h-4 mr-2" />
-                File Complaint
-              </Button>
-            </Link>
-            <Button variant="outline" className="w-full justify-start" size="sm">
-              <Award className="w-4 h-4 mr-2" />
-              Redeem Rewards
-            </Button>
-            <Link href="/citizen/my-complaints" className="block">
-              <Button variant="outline" className="w-full justify-start" size="sm">
-                <AlertCircle className="w-4 h-4 mr-2" />
-                My Complaints
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+          {/* Tabs Container */}
+          <Tabs defaultValue="reading-complaints" className="w-full space-y-4">
+            <TabsList>
+              <TabsTrigger value="reading-complaints">Reading Complaints</TabsTrigger>
+              <TabsTrigger value="your-complaints">Your Complaints</TabsTrigger>
+            </TabsList>
 
-        {/* Recent Activity */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-foreground">Recent Activity</CardTitle>
-              <CardDescription>Your latest updates</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {recentActivity.map((activity, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start gap-3 p-3 rounded-lg border border-border"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{activity.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {activity.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground/60 mt-2">
-                      {getTimeAgo(activity.timestamp)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+            {/* Reading Complaints Tab */}
+            <TabsContent value="reading-complaints" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Complaints Registry</CardTitle>
+                  <CardDescription>Browse recent community complaints filed across all wards.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Complaint ID</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Category</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ward</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Priority</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assigned To</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Created</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Updated</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allMockComplaints.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
+                          <TableCell>{item.category}</TableCell>
+                          <TableCell>{item.ward}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getPriorityBadgeClass(item.priority)}>
+                              {item.priority}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getStatusBadgeClass(item.status)}>
+                              {item.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{item.assignedTo}</TableCell>
+                          <TableCell className="text-muted-foreground">{item.created}</TableCell>
+                          <TableCell className="text-muted-foreground">{item.updated}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Your Complaints Tab */}
+            <TabsContent value="your-complaints" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Filed Complaints</CardTitle>
+                  <CardDescription>Track the resolution status of complaints filed by your account.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Complaint ID</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Category</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Created On</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Activity</TableHead>
+                        <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Estimated Resolution</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {myMockComplaints.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
+                          <TableCell>{item.category}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getStatusBadgeClass(item.status)}>
+                              {item.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{item.createdOn}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{item.lastActivity}</TableCell>
+                          <TableCell className="font-medium text-foreground/80">{item.estResolution}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
         </div>
       </div>
-
-      {/* My Recent Complaints */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-bold text-foreground">My Recent Complaints</CardTitle>
-          <CardDescription>Your latest filed complaints</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {myComplaints.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="w-12 h-12 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-muted-foreground">No complaints filed yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {myComplaints.map((complaint: any, idx) => (
-                <motion.div
-                  key={complaint.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{complaint.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {complaint.description?.substring(0, 50)}...
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    <StatusBadge status={complaint.status} />
-                    <PriorityBadge priority={complaint.priority} />
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="ghost">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>{complaint.title}</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">
-                              Description
-                            </label>
-                            <p className="text-sm mt-2">{complaint.description}</p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-sm font-medium text-muted-foreground">
-                                Status
-                              </label>
-                              <div className="mt-2">
-                                <StatusBadge status={complaint.status} />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium text-muted-foreground">
-                                Priority
-                              </label>
-                              <div className="mt-2">
-                                <PriorityBadge priority={complaint.priority} />
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">
-                              Filed on
-                            </label>
-                            <p className="text-sm mt-2">
-                              {formatDate(complaint.createdAt, 'long')}
-                            </p>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    </>
   );
 }

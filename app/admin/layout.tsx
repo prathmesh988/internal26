@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store';
-import { AppSidebar } from '@/components/app-sidebar';
+import { AppSidebarAdmin } from '@/components/app-sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 export default function AdminLayout({
   children,
@@ -34,13 +34,11 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <AppSidebar />
-      <main className="flex-1 overflow-auto ml-64">
-        <div className="min-h-full p-8">
-          {children}
-        </div>
-      </main>
-    </div>
+    <SidebarProvider>
+      <AppSidebarAdmin />
+      <SidebarInset>
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
