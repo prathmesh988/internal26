@@ -1,0 +1,374 @@
+{
+  "name": "WF-Daily-Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "59 23 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-id",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Daily-Analytics\",\n    \"action\": \"Workflow Started\",\n    \"status\": \"SUCCESS\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-start-id",
+      "name": "Log Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/complaints/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "sendQueryParameters": true,
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "queries[0]", "value": "=greaterThan(\"createdAt\", \"{{ new Date(Date.now() - 24 * 3600000).toISOString() }}\")" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-complaints-id",
+      "name": "Fetch Complaints Today",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/complaints/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "sendQueryParameters": true,
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "queries[0]", "value": "equal(\"status\", [\"RESOLVED\"])" },
+            { "name": "queries[1]", "value": "=greaterThan(\"resolvedAt\", \"{{ new Date(Date.now() - 24 * 3600000).toISOString() }}\")" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-resolved-id",
+      "name": "Fetch Resolved Today",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/complaints/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "sendQueryParameters": true,
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "queries[0]", "value": "equal(\"status\", [\"ESCALATED\"])" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-escalated-id",
+      "name": "Fetch Escalated Today",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/rewards/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "sendQueryParameters": true,
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "queries[0]", "value": "=greaterThan(\"createdAt\", \"{{ new Date(Date.now() - 24 * 3600000).toISOString() }}\")" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-rewards-id",
+      "name": "Fetch Rewards Today",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Aggregate results and format report HTML\nconst totalComplaints = $('Fetch Complaints Today').first().json.total || 0;\nconst totalResolved = $('Fetch Resolved Today').first().json.total || 0;\nconst totalEscalated = $('Fetch Escalated Today').first().json.total || 0;\nconst totalRewards = $('Fetch Rewards Today').first().json.total || 0;\n\nconst dateStr = new Date().toDateString();\nconst htmlReport = `\n  <h2>Daily Analytics Report - ${dateStr}</h2>\n  <table border=\"1\" cellpadding=\"5\" style=\"border-collapse: collapse; font-family: sans-serif;\">\n    <tr bgcolor=\"#f2f2f2\"><th>Metric</th><th>Count</th></tr>\n    <tr><td>Complaints Filed Today</td><td><b>${totalComplaints}</b></td></tr>\n    <tr><td>Complaints Resolved Today</td><td><b>${totalResolved}</b></td></tr>\n    <tr><td>Active Escalated Complaints</td><td><span style=\"color:red;\"><b>${totalEscalated}</b></span></td></tr>\n    <tr><td>Reward Transactions Processed Today</td><td><b>${totalRewards}</b></td></tr>\n  </table>\n  <br>\n  <p>This is an automated system report from the WasteFlow n8n Daily Analytics workflow.</p>\n`;\n\nreturn [{\n  json: {\n    totalComplaints,\n    totalResolved,\n    totalEscalated,\n    totalRewards,\n    htmlReport\n  }\n}];"
+      },
+      "id": "compile-statistics-id",
+      "name": "Compile Statistics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@wasteflow.in",
+        "toEmail": "admin@wasteflow.in",
+        "subject": "=WasteFlow Daily Analytics Report - {{ new Date().toDateString() }}",
+        "html": "={{ $json.htmlReport }}",
+        "options": {}
+      },
+      "id": "email-report-id",
+      "name": "Email Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Daily-Analytics\",\n    \"action\": \"Workflow Completed\",\n    \"status\": \"SUCCESS\",\n    \"message\": \"Daily report compiled and sent. Complaints filed: {{ $('Compile Statistics').first().json.totalComplaints }}. Resolved: {{ $('Compile Statistics').first().json.totalResolved }}.\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-complete-id",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-id",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [100, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Daily-Analytics\",\n    \"action\": \"Workflow Failed\",\n    \"status\": \"FAILED\",\n    \"message\": \"{{ $json.execution.error.message }}\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $json.execution.id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-failure-id",
+      "name": "Log Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 500]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@wasteflow.in",
+        "toEmail": "admin@wasteflow.in",
+        "subject": "=Workflow Failed: WF-Daily-Analytics (Execution ID: {{ $json.executionId }})",
+        "html": "=<h3>Workflow Execution Failure</h3><p><b>Workflow Name:</b> WF-Daily-Analytics</p><p><b>Execution ID:</b> {{ $('Log Failure').first().json.data.executionId }}</p><p><b>Error Message:</b> {{ $('Log Failure').first().json.data.message }}</p>",
+        "options": {}
+      },
+      "id": "notify-admin-id",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [500, 500]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Start": {
+      "main": [
+        [
+          {
+            "node": "Fetch Complaints Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Complaints Today": {
+      "main": [
+        [
+          {
+            "node": "Fetch Resolved Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Resolved Today": {
+      "main": [
+        [
+          {
+            "node": "Fetch Escalated Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Escalated Today": {
+      "main": [
+        [
+          {
+            "node": "Fetch Rewards Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Rewards Today": {
+      "main": [
+        [
+          {
+            "node": "Compile Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Statistics": {
+      "main": [
+        [
+          {
+            "node": "Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Report": {
+      "main": [
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionTimeout": 3600
+  }
+}

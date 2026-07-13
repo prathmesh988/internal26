@@ -1,0 +1,395 @@
+{
+  "name": "WF-Vehicle-Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-id",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Vehicle-Monitoring\",\n    \"action\": \"Workflow Started\",\n    \"status\": \"SUCCESS\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-start-id",
+      "name": "Log Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/vehicles/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "sendQueryParameters": true,
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "queries[0]", "value": "equal(\"status\", [\"IN_USE\"])" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-vehicles-id",
+      "name": "Fetch Active Vehicles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Identify vehicles that haven't updated GPS coordinates in 15 minutes\nconst items = $input.all();\nif (!items || items.length === 0 || !items[0].json.documents || items[0].json.documents.length === 0) {\n  return [];\n}\nconst vehicles = items[0].json.documents;\nconst now = Date.now();\nconst fifteenMinutes = 15 * 60 * 1000;\n\nconst staleVehicles = vehicles.filter(v => {\n  if (!v.lastLocationUpdate) return true;\n  const lastUpdate = new Date(v.lastLocationUpdate).getTime();\n  return (now - lastUpdate) > fifteenMinutes;\n});\n\nreturn staleVehicles.map(v => ({\n  json: {\n    vehicleId: v.$id,\n    registrationNumber: v.registrationNumber,\n    assignedDriverName: v.assignedDriverName || \"UNKNOWN\",\n    lastLocationUpdate: v.lastLocationUpdate || \"NEVER\",\n    timeSinceLastUpdate: v.lastLocationUpdate ? Math.round((now - new Date(v.lastLocationUpdate).getTime()) / 60000) : 9999\n  }\n}));"
+      },
+      "id": "detect-stale-id",
+      "name": "Detect Stale GPS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "type": "number"
+          },
+          "conditions": [
+            {
+              "id": "cond-stale-exists",
+              "leftValue": "={{ $input.all().length }}",
+              "comparison": "gt",
+              "rightValue": 0
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-stale-exist-id",
+      "name": "Check Stale Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/notifications/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"citizenId\": \"SYSTEM_ADMIN\",\n    \"type\": \"ALERT\",\n    \"title\": \"Stale GPS Signal Alert\",\n    \"message\": \"Vehicle {{ $json.registrationNumber }} (Driver: {{ $json.assignedDriverName }}) has not updated its GPS location for {{ $json.timeSinceLastUpdate }} minutes. Please inspect immediately.\",\n    \"read\": false,\n    \"delivered\": false,\n    \"channel\": \"EMAIL\"\n  }\n}",
+        "options": {}
+      },
+      "id": "create-notif-id",
+      "name": "Create Alert Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 200],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/notification-dispatcher",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"notificationId\": \"{{ $json.$id }}\"\n}",
+        "options": {}
+      },
+      "id": "trigger-dispatcher-id",
+      "name": "Trigger Dispatcher",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Vehicle-Monitoring\",\n    \"action\": \"GPS Alert Triggered\",\n    \"nodeName\": \"Detect Stale GPS\",\n    \"status\": \"SUCCESS\",\n    \"message\": \"Stale signal alert created for vehicle {{ $json.registrationNumber }}.\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-alert-id",
+      "name": "Log Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Vehicle-Monitoring\",\n    \"action\": \"Workflow Completed\",\n    \"status\": \"SUCCESS\",\n    \"message\": \"GPS status monitoring sweep completed. Alerts processed.\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-complete-id",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1700, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Vehicle-Monitoring\",\n    \"action\": \"Workflow Completed\",\n    \"status\": \"SUCCESS\",\n    \"message\": \"GPS status monitoring sweep completed. No stale vehicles detected.\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-no-stale-id",
+      "name": "Log No Stale",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 450]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-id",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [100, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Vehicle-Monitoring\",\n    \"action\": \"Workflow Failed\",\n    \"status\": \"FAILED\",\n    \"message\": \"{{ $json.execution.error.message }}\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $json.execution.id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-failure-id",
+      "name": "Log Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 600]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@wasteflow.in",
+        "toEmail": "admin@wasteflow.in",
+        "subject": "=Workflow Failed: WF-Vehicle-Monitoring (Execution ID: {{ $json.executionId }})",
+        "html": "=<h3>Workflow Execution Failure</h3><p><b>Workflow Name:</b> WF-Vehicle-Monitoring</p><p><b>Execution ID:</b> {{ $('Log Failure').first().json.data.executionId }}</p><p><b>Error Message:</b> {{ $('Log Failure').first().json.data.message }}</p>",
+        "options": {}
+      },
+      "id": "notify-admin-id",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [500, 600]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Start": {
+      "main": [
+        [
+          {
+            "node": "Fetch Active Vehicles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Active Vehicles": {
+      "main": [
+        [
+          {
+            "node": "Detect Stale GPS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Stale GPS": {
+      "main": [
+        [
+          {
+            "node": "Check Stale Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Stale Exist": {
+      "main": [
+        [
+          {
+            "node": "Create Alert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Stale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Alert Notification": {
+      "main": [
+        [
+          {
+            "node": "Trigger Dispatcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Dispatcher": {
+      "main": [
+        [
+          {
+            "node": "Log Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionTimeout": 3600
+  }
+}

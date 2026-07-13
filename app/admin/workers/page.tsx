@@ -50,33 +50,13 @@ import {
   Search,
 } from 'lucide-react';
 import { formatDate, formatNumber } from '@/lib/utils-helpers';
-
-// 25+ comprehensive mock workers
-const localMockWorkers = [
-  { id: 'WRK-001', name: 'Ramesh Chawla', role: 'Driver', wardCode: 'W03', status: 'ACTIVE', completionRate: 95, averageRating: 4.8, totalPickups: 340, email: 'ramesh@municipal.gov', phone: '+91 98765 43210', hireDate: '2024-03-12' },
-  { id: 'WRK-002', name: 'Sanjay Dutt', role: 'Driver', wardCode: 'W03', status: 'ACTIVE', completionRate: 92, averageRating: 4.7, totalPickups: 290, email: 'sanjay@municipal.gov', phone: '+91 98765 43211', hireDate: '2024-05-15' },
-  { id: 'WRK-003', name: 'Rajesh Patil', role: 'Collector', wardCode: 'W01', status: 'ACTIVE', completionRate: 88, averageRating: 4.6, totalPickups: 410, email: 'rajesh.p@municipal.gov', phone: '+91 98765 43212', hireDate: '2023-11-01' },
-  { id: 'WRK-004', name: 'Suresh Kumar', role: 'Sweeper', wardCode: 'W04', status: 'ACTIVE', completionRate: 91, averageRating: 4.5, totalPickups: 250, email: 'suresh@municipal.gov', phone: '+91 98765 43213', hireDate: '2024-02-18' },
-  { id: 'WRK-005', name: 'Vikram Singh', role: 'Supervisor', wardCode: 'W02', status: 'ACTIVE', completionRate: 94, averageRating: 4.9, totalPickups: 120, email: 'vikram@municipal.gov', phone: '+91 98765 43214', hireDate: '2023-08-20' },
-  { id: 'WRK-006', name: 'Amit Shah', role: 'Collector', wardCode: 'W05', status: 'ON_LEAVE', completionRate: 75, averageRating: 4.2, totalPickups: 198, email: 'amit@municipal.gov', phone: '+91 98765 43215', hireDate: '2024-06-01' },
-  { id: 'WRK-007', name: 'Karan Malhotra', role: 'Driver', wardCode: 'W01', status: 'ACTIVE', completionRate: 96, averageRating: 4.8, totalPickups: 310, email: 'karan@municipal.gov', phone: '+91 98765 43216', hireDate: '2024-01-10' },
-  { id: 'WRK-008', name: 'Arun Yadav', role: 'Collector', wardCode: 'W03', status: 'ACTIVE', completionRate: 85, averageRating: 4.3, totalPickups: 220, email: 'arun@municipal.gov', phone: '+91 98765 43217', hireDate: '2024-04-14' },
-  { id: 'WRK-009', name: 'Manoj Bajpayee', role: 'Driver', wardCode: 'W06', status: 'ACTIVE', completionRate: 90, averageRating: 4.6, totalPickups: 280, email: 'manoj@municipal.gov', phone: '+91 98765 43218', hireDate: '2024-05-20' },
-  { id: 'WRK-010', name: 'Vijay Chauhan', role: 'Driver', wardCode: 'W04', status: 'ACTIVE', completionRate: 93, averageRating: 4.7, totalPickups: 305, email: 'vijay@municipal.gov', phone: '+91 98765 43219', hireDate: '2023-12-05' },
-  { id: 'WRK-011', name: 'Anil Kamble', role: 'Collector', wardCode: 'W02', status: 'MAINTENANCE', completionRate: 65, averageRating: 3.8, totalPickups: 150, email: 'anil@municipal.gov', phone: '+91 98765 43220', hireDate: '2024-07-01' },
-  { id: 'WRK-012', name: 'Dilip Rao', role: 'Driver', wardCode: 'W05', status: 'ACTIVE', completionRate: 89, averageRating: 4.4, totalPickups: 275, email: 'dilip@municipal.gov', phone: '+91 98765 43221', hireDate: '2024-03-22' },
-  { id: 'WRK-013', name: 'Narendra Singh', role: 'Collector', wardCode: 'W01', status: 'ACTIVE', completionRate: 90, averageRating: 4.5, totalPickups: 240, email: 'narendra@municipal.gov', phone: '+91 98765 43222', hireDate: '2024-04-01' },
-  { id: 'WRK-014', name: 'Sunil Shetty', role: 'Sweeper', wardCode: 'W03', status: 'ON_LEAVE', completionRate: 82, averageRating: 4.1, totalPickups: 110, email: 'sunil@municipal.gov', phone: '+91 98765 43223', hireDate: '2024-02-15' },
-  { id: 'WRK-015', name: 'Devendra Patil', role: 'Driver', wardCode: 'W02', status: 'ACTIVE', completionRate: 94, averageRating: 4.7, totalPickups: 320, email: 'devendra@municipal.gov', phone: '+91 98765 43224', hireDate: '2023-09-12' },
-  { id: 'WRK-016', name: 'Kailash Kher', role: 'Supervisor', wardCode: 'W05', status: 'ACTIVE', completionRate: 91, averageRating: 4.5, totalPickups: 95, email: 'kailash@municipal.gov', phone: '+91 98765 43225', hireDate: '2024-01-05' },
-  { id: 'WRK-017', name: 'Rajesh Shinde', role: 'Collector', wardCode: 'W01', status: 'ACTIVE', completionRate: 87, averageRating: 4.4, totalPickups: 190, email: 'rajesh.s@municipal.gov', phone: '+91 98765 43226', hireDate: '2024-05-18' },
-  { id: 'WRK-018', name: 'Gopal Dutt', role: 'Sweeper', wardCode: 'W04', status: 'ACTIVE', completionRate: 88, averageRating: 4.3, totalPickups: 175, email: 'gopal@municipal.gov', phone: '+91 98765 43227', hireDate: '2024-04-20' },
-  { id: 'WRK-019', name: 'Pankaj Tripathi', role: 'Supervisor', wardCode: 'W06', status: 'ACTIVE', completionRate: 97, averageRating: 4.9, totalPickups: 150, email: 'pankaj@municipal.gov', phone: '+91 98765 43228', hireDate: '2023-07-15' },
-  { id: 'WRK-020', name: 'Boman Irani', role: 'Driver', wardCode: 'W02', status: 'ACTIVE', completionRate: 92, averageRating: 4.6, totalPickups: 260, email: 'boman@municipal.gov', phone: '+91 98765 43229', hireDate: '2024-02-10' }
-];
+import { useWorkers } from '@/hooks';
 
 export default function WorkersPage() {
-  const [workers, setWorkers] = useState(localMockWorkers);
+  const { data: allWorkersData } = useWorkers(1, 100);
+  const workers = useMemo(() => {
+    return allWorkersData?.data || [];
+  }, [allWorkersData]);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
@@ -121,7 +101,7 @@ export default function WorkersPage() {
       return (
         w.name.toLowerCase().includes(match) ||
         w.role.toLowerCase().includes(match) ||
-        w.wardCode.toLowerCase().includes(match)
+        (w.wardCode && w.wardCode.toLowerCase().includes(match))
       );
     });
   }, [workers, searchTerm]);

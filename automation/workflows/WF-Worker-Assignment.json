@@ -1,0 +1,271 @@
+{
+  "name": "WF-Worker-Assignment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "worker-assignment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger-id",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $json.body.complaintId || 'UNKNOWN' }}\",\n    \"workflowName\": \"WF-Worker-Assignment\",\n    \"action\": \"Workflow Started\",\n    \"status\": \"SUCCESS\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-start-id",
+      "name": "Log Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Validate payload\nconst items = $input.all();\nconst payload = items[0].json.body || {};\nif (!payload.complaintId || !payload.wardCode) {\n  throw new Error(\"Missing required fields: complaintId or wardCode.\");\n}\nreturn [{ json: { complaintId: payload.complaintId, wardCode: payload.wardCode } }];"
+      },
+      "id": "validate-input-id",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workers/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "sendQueryParameters": true,
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "queries[0]", "value": "equal(\"status\", [\"ACTIVE\"])" },
+            { "name": "queries[1]", "value": "equal(\"isAvailable\", [true])" },
+            { "name": "queries[2]", "value": "equal(\"wardCode\", [\"{{ $json.wardCode }}\"])" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-workers-id",
+      "name": "Fetch Active Available Workers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Choose the worker with the lowest workload\nconst items = $input.all();\nif (!items || items.length === 0 || !items[0].json.documents || items[0].json.documents.length === 0) {\n  return [{ json: { workerId: null, workerName: null, workerEmail: null } }];\n}\nconst workers = items[0].json.documents;\n// Sort workers by totalComplaints ascending (lowest workload first)\nworkers.sort((a, b) => (a.totalComplaints || 0) - (b.totalComplaints || 0));\nconst selected = workers[0];\nreturn [{\n  json: {\n    workerId: selected.$id,\n    workerName: selected.name,\n    workerEmail: selected.email\n  }\n}];"
+      },
+      "id": "find-lowest-workload-id",
+      "name": "Find Lowest Workload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $('Validate Input').first().json.complaintId }}\",\n    \"workflowName\": \"WF-Worker-Assignment\",\n    \"action\": \"Workflow Completed\",\n    \"status\": \"{{ $json.workerId ? 'SUCCESS' : 'SKIPPED' }}\",\n    \"message\": \"{{ $json.workerId ? 'Worker found: ' + $json.workerName : 'No workers available in ward.' }}\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-complete-id",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"workerId\": \"{{ $json.data.status === 'SUCCESS' ? $('Find Lowest Workload').first().json.workerId : null }}\",\n  \"workerName\": \"{{ $json.data.status === 'SUCCESS' ? $('Find Lowest Workload').first().json.workerName : null }}\",\n  \"workerEmail\": \"{{ $json.data.status === 'SUCCESS' ? $('Find Lowest Workload').first().json.workerEmail : null }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-webhook-id",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-id",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [100, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $json.execution.error.complaintId || 'UNKNOWN' }}\",\n    \"workflowName\": \"WF-Worker-Assignment\",\n    \"action\": \"Workflow Failed\",\n    \"status\": \"FAILED\",\n    \"message\": \"{{ $json.execution.error.message }}\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $json.execution.id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-failure-id",
+      "name": "Log Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 500]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@wasteflow.in",
+        "toEmail": "admin@wasteflow.in",
+        "subject": "=Workflow Failed: WF-Worker-Assignment (Execution ID: {{ $json.executionId }})",
+        "html": "=<h3>Workflow Execution Failure</h3><p><b>Workflow Name:</b> WF-Worker-Assignment</p><p><b>Execution ID:</b> {{ $('Log Failure').first().json.data.executionId }}</p><p><b>Error Message:</b> {{ $('Log Failure').first().json.data.message }}</p>",
+        "options": {}
+      },
+      "id": "notify-admin-id",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [500, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Start": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Fetch Active Available Workers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Active Available Workers": {
+      "main": [
+        [
+          {
+            "node": "Find Lowest Workload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Lowest Workload": {
+      "main": [
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Completion": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionTimeout": 3600
+  }
+}

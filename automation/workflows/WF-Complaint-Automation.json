@@ -1,0 +1,558 @@
+{
+  "name": "WF-Complaint-Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "complaint-automation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger-id",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $json.body.complaintId || 'UNKNOWN' }}\",\n    \"workflowName\": \"WF-Complaint-Automation\",\n    \"action\": \"Workflow Started\",\n    \"status\": \"SUCCESS\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-start-id",
+      "name": "Log Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Validate that complaintId exists\nconst items = $input.all();\nconst payload = items[0].json.body || {};\nif (!payload.complaintId) {\n  throw new Error(\"Missing required field: complaintId in webhook body.\");\n}\nreturn [{ json: { complaintId: payload.complaintId } }];"
+      },
+      "id": "validate-input-id",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/complaints/documents/{{ $json.complaintId }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-complaint-id",
+      "name": "Fetch Complaint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/worker-assignment",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"complaintId\": \"{{ $json.$id }}\",\n  \"wardCode\": \"{{ $json.wardCode }}\"\n}",
+        "options": {}
+      },
+      "id": "invoke-worker-assignment-id",
+      "name": "Invoke Worker Assignment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "type": "string"
+          },
+          "conditions": [
+            {
+              "id": "cond-worker-exists",
+              "leftValue": "={{ $json.workerId }}",
+              "comparison": "notEmpty",
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-assignment-id",
+      "name": "Check Assignment Result",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Prepare the timeline append and form the update payload\nconst complaint = $('Fetch Complaint').first().json;\nconst assignment = $('Invoke Worker Assignment').first().json;\n\nlet timeline = [];\ntry {\n  timeline = JSON.parse(complaint.timeline || \"[]\");\n} catch (e) {\n  timeline = [];\n}\ntimeline.push({\n  action: \"Worker Assigned\",\n  time: new Date().toISOString()\n});\n\nreturn [{\n  json: {\n    complaintId: complaint.$id,\n    updateData: {\n      status: \"ASSIGNED\",\n      assignedToWorkerId: assignment.workerId,\n      assignedToWorkerName: assignment.workerName,\n      assignedToWorkerEmail: assignment.workerEmail,\n      assignedAt: new Date().toISOString(),\n      assignedBy: \"n8n\",\n      assignmentMethod: \"AUTO\",\n      timeline: JSON.stringify(timeline)\n    }\n  }\n}];"
+      },
+      "id": "prepare-update-body-id",
+      "name": "Prepare Update Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/complaints/documents/{{ $json.complaintId }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"data\": {{ JSON.stringify($json.updateData) }}\n}",
+        "options": {}
+      },
+      "id": "update-complaint-id",
+      "name": "Update Complaint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 200],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workers/documents/{{ $('Invoke Worker Assignment').first().json.workerId }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"data\": {\n    \"isAvailable\": false\n  }\n}",
+        "options": {}
+      },
+      "id": "update-worker-id",
+      "name": "Update Worker Availability",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1700, 200],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/notifications/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"citizenId\": \"{{ $('Fetch Complaint').first().json.citizenId }}\",\n    \"type\": \"COMPLAINT_UPDATE\",\n    \"title\": \"Worker Assigned\",\n    \"message\": \"A worker ({{ $('Invoke Worker Assignment').first().json.workerName }}) has been assigned to resolve your complaint.\",\n    \"read\": false,\n    \"delivered\": false,\n    \"channel\": \"EMAIL\",\n    \"relatedComplaintId\": \"{{ $('Fetch Complaint').first().json.$id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "create-notification-id",
+      "name": "Create Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 200],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/notification-dispatcher",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"notificationId\": \"{{ $json.$id }}\"\n}",
+        "options": {}
+      },
+      "id": "trigger-dispatcher-id",
+      "name": "Trigger Notification Dispatcher",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2100, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $('Fetch Complaint').first().json.$id }}\",\n    \"workflowName\": \"WF-Complaint-Automation\",\n    \"action\": \"Worker Assigned\",\n    \"nodeName\": \"Update Complaint\",\n    \"status\": \"SUCCESS\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-worker-assigned-id",
+      "name": "Log Worker Assigned",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2300, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $('Fetch Complaint').first().json.$id }}\",\n    \"workflowName\": \"WF-Complaint-Automation\",\n    \"action\": \"Workflow Completed\",\n    \"status\": \"SUCCESS\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-complete-id",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Complaint assigned successfully.\",\n  \"complaintId\": \"{{ $('Fetch Complaint').first().json.$id }}\",\n  \"workerId\": \"{{ $('Invoke Worker Assignment').first().json.workerId }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-success-id",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2700, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $('Fetch Complaint').first().json.$id }}\",\n    \"workflowName\": \"WF-Complaint-Automation\",\n    \"action\": \"Worker Assigned\",\n    \"nodeName\": \"Check Assignment Result\",\n    \"status\": \"FAILED\",\n    \"message\": \"No available workers in ward.\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-no-worker-id",
+      "name": "Log No Worker Available",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"No available worker found for ward: {{ $('Fetch Complaint').first().json.wardCode }}.\"\n}",
+        "options": {}
+      },
+      "id": "respond-no-worker-id",
+      "name": "Respond No Worker",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-id",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [100, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $json.execution.error.complaintId || 'UNKNOWN' }}\",\n    \"workflowName\": \"WF-Complaint-Automation\",\n    \"action\": \"Workflow Failed\",\n    \"status\": \"FAILED\",\n    \"message\": \"{{ $json.execution.error.message }}\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $json.execution.id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-failure-id",
+      "name": "Log Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 600]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@wasteflow.in",
+        "toEmail": "admin@wasteflow.in",
+        "subject": "=Workflow Failed: WF-Complaint-Automation (Execution ID: {{ $json.executionId }})",
+        "html": "=<h3>Workflow Execution Failure</h3><p><b>Workflow Name:</b> WF-Complaint-Automation</p><p><b>Execution ID:</b> {{ $('Log Failure').first().json.data.executionId }}</p><p><b>Error Message:</b> {{ $('Log Failure').first().json.data.message }}</p>",
+        "options": {}
+      },
+      "id": "notify-admin-id",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [500, 600]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Start": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Fetch Complaint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Complaint": {
+      "main": [
+        [
+          {
+            "node": "Invoke Worker Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoke Worker Assignment": {
+      "main": [
+        [
+          {
+            "node": "Check Assignment Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Assignment Result": {
+      "main": [
+        [
+          {
+            "node": "Prepare Update Body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Worker Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Update Body": {
+      "main": [
+        [
+          {
+            "node": "Update Complaint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Complaint": {
+      "main": [
+        [
+          {
+            "node": "Update Worker Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Worker Availability": {
+      "main": [
+        [
+          {
+            "node": "Create Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notification": {
+      "main": [
+        [
+          {
+            "node": "Trigger Notification Dispatcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Notification Dispatcher": {
+      "main": [
+        [
+          {
+            "node": "Log Worker Assigned",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Worker Assigned": {
+      "main": [
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Completion": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log No Worker Available": {
+      "main": [
+        [
+          {
+            "node": "Respond No Worker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionTimeout": 3600
+  }
+}

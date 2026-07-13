@@ -1,0 +1,505 @@
+{
+  "name": "WF-Complaint-Escalation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-id",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Complaint-Escalation\",\n    \"action\": \"Workflow Started\",\n    \"status\": \"SUCCESS\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-start-id",
+      "name": "Log Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/complaints/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "sendQueryParameters": true,
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "queries[0]", "value": "=or([equal(\"status\", \"OPEN\"), equal(\"status\", \"ASSIGNED\")])" },
+            { "name": "queries[1]", "value": "=lessThan(\"createdAt\", \"{{ new Date(Date.now() - 24 * 3600000).toISOString() }}\")" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-stale-complaints-id",
+      "name": "Fetch Stale Complaints",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "type": "number"
+          },
+          "conditions": [
+            {
+              "id": "cond-stale-exists",
+              "leftValue": "={{ $json.total }}",
+              "comparison": "gt",
+              "rightValue": 0
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-stale-exists-id",
+      "name": "Check Stale Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-in-batches-id",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Calculate escalation counts and modify timeline\nconst complaint = $input.all()[0].json;\nconst currentCount = complaint.escalationCount || 0;\nconst newCount = currentCount + 1;\nlet nextLevel = \"LEVEL_1\";\nif (newCount === 2) nextLevel = \"LEVEL_2\";\nif (newCount >= 3) nextLevel = \"LEVEL_3\";\n\nlet timeline = [];\ntry {\n  timeline = JSON.parse(complaint.timeline || \"[]\");\n} catch (e) {\n  timeline = [];\n}\ntimeline.push({\n  action: `Escalated to ${nextLevel}`,\n  time: new Date().toISOString()\n});\n\nreturn [{\n  json: {\n    complaintId: complaint.$id,\n    wardCode: complaint.wardCode,\n    title: complaint.title,\n    citizenId: complaint.citizenId,\n    updateData: {\n      escalationCount: newCount,\n      escalatedAt: new Date().toISOString(),\n      escalationLevel: nextLevel,\n      escalationReason: \"No action taken within 24-hour SLA window\",\n      escalatedBy: \"n8n\",\n      status: \"ESCALATED\",\n      timeline: JSON.stringify(timeline)\n    }\n  }\n}];"
+      },
+      "id": "calculate-escalation-id",
+      "name": "Calculate Escalation Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1150, 150]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/complaints/documents/{{ $json.complaintId }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"data\": {{ JSON.stringify($json.updateData) }}\n}",
+        "options": {}
+      },
+      "id": "update-complaint-id",
+      "name": "Update Complaint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workers/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" }
+          ]
+        },
+        "sendQueryParameters": true,
+        "queryParametersUi": {
+          "parameter": [
+            { "name": "queries[0]", "value": "equal(\"role\", [\"SUPERVISOR\"])" },
+            { "name": "queries[1]", "value": "=equal(\"wardCode\", [\"{{ $('Calculate Escalation Payload').first().json.wardCode }}\"])" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-supervisor-id",
+      "name": "Fetch Ward Supervisor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1550, 150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/notifications/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"citizenId\": \"{{ $json.documents[0] ? $json.documents[0].$id : 'SYSTEM' }}\",\n    \"type\": \"ALERT\",\n    \"title\": \"Complaint Escalation Alert\",\n    \"message\": \"Complaint regarding '{{ $('Calculate Escalation Payload').first().json.title }}' in your ward has escalated to level {{ $('Calculate Escalation Payload').first().json.updateData.escalationLevel }}!\",\n    \"read\": false,\n    \"delivered\": false,\n    \"channel\": \"EMAIL\",\n    \"relatedComplaintId\": \"{{ $('Calculate Escalation Payload').first().json.complaintId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "create-supervisor-notif-id",
+      "name": "Create Supervisor Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1750, 150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/notification-dispatcher",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"notificationId\": \"{{ $json.$id }}\"\n}",
+        "options": {}
+      },
+      "id": "trigger-dispatcher-id",
+      "name": "Trigger Dispatcher",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1950, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"{{ $('Calculate Escalation Payload').first().json.complaintId }}\",\n    \"workflowName\": \"WF-Complaint-Escalation\",\n    \"action\": \"Escalation Triggered\",\n    \"nodeName\": \"Update Complaint\",\n    \"status\": \"SUCCESS\",\n    \"message\": \"Complaint escalated to {{ $('Calculate Escalation Payload').first().json.updateData.escalationLevel }}\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-escalation-id",
+      "name": "Log Escalation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2150, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Complaint-Escalation\",\n    \"action\": \"Workflow Completed\",\n    \"status\": \"SUCCESS\",\n    \"message\": \"Escalated complaints count: {{ $('Fetch Stale Complaints').first().json.total }}\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-complete-id",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1150, 350]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Complaint-Escalation\",\n    \"action\": \"Workflow Completed\",\n    \"status\": \"SUCCESS\",\n    \"message\": \"No stale complaints found.\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $executionId }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-no-stale-id",
+      "name": "Log No Stale",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 450]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-id",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [100, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cloud.appwrite.io/v1/databases/6a540f2e001dfabaccb5/collections/workflow_logs/documents",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            { "name": "X-Appwrite-Project", "value": "YOUR_PROJECT_ID" },
+            { "name": "X-Appwrite-Key", "value": "YOUR_API_KEY" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"documentId\": \"unique()\",\n  \"data\": {\n    \"complaintId\": \"UNKNOWN\",\n    \"workflowName\": \"WF-Complaint-Escalation\",\n    \"action\": \"Workflow Failed\",\n    \"status\": \"FAILED\",\n    \"message\": \"{{ $json.execution.error.message }}\",\n    \"executedBy\": \"n8n\",\n    \"executionId\": \"{{ $json.execution.id }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "log-failure-id",
+      "name": "Log Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [300, 600]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@wasteflow.in",
+        "toEmail": "admin@wasteflow.in",
+        "subject": "=Workflow Failed: WF-Complaint-Escalation (Execution ID: {{ $json.executionId }})",
+        "html": "=<h3>Workflow Execution Failure</h3><p><b>Workflow Name:</b> WF-Complaint-Escalation</p><p><b>Execution ID:</b> {{ $('Log Failure').first().json.data.executionId }}</p><p><b>Error Message:</b> {{ $('Log Failure').first().json.data.message }}</p>",
+        "options": {}
+      },
+      "id": "notify-admin-id",
+      "name": "Notify Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [500, 600]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Start": {
+      "main": [
+        [
+          {
+            "node": "Fetch Stale Complaints",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Stale Complaints": {
+      "main": [
+        [
+          {
+            "node": "Check Stale Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Stale Exist": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Stale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Calculate Escalation Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Escalation Payload": {
+      "main": [
+        [
+          {
+            "node": "Update Complaint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Complaint": {
+      "main": [
+        [
+          {
+            "node": "Fetch Ward Supervisor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Ward Supervisor": {
+      "main": [
+        [
+          {
+            "node": "Create Supervisor Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Supervisor Notification": {
+      "main": [
+        [
+          {
+            "node": "Trigger Dispatcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Dispatcher": {
+      "main": [
+        [
+          {
+            "node": "Log Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Escalation": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionTimeout": 3600
+  }
+}

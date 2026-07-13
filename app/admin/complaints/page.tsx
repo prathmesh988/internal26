@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -38,6 +38,9 @@ import {
 } from '@/components/ui/table';
 import { SiteHeader } from '@/components/site-header';
 import { StatusBadge, PriorityBadge } from '@/components/shared';
+import { useComplaints, useCitizens, useAsyncAction } from '@/hooks';
+import { complaintService } from '@/services/appwrite/client';
+import { formatDate } from '@/lib/utils-helpers';
 import {
   AlertCircle,
   CheckCircle,
@@ -50,6 +53,7 @@ import {
 } from 'lucide-react';
 
 const statusStyles: Record<string, string> = {
+  OPEN: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
   PENDING: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
   UNDER_REVIEW: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
   ASSIGNED: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
@@ -74,36 +78,11 @@ function getPriorityBadgeClass(priority: string) {
   }
 }
 
-// 25+ detailed mock complaints for testing and display
-const initialMockComplaints = [
-  { id: 'CMP-2094', citizen: 'Aarav Mehta', category: 'Missed Pickup', ward: 'W03', priority: 'MEDIUM', status: 'PENDING', officer: 'Inspector R. Sen', created: '2026-07-10 09:30', desc: 'Garbage truck did not collect waste from block B lane 2 today.' },
-  { id: 'CMP-2081', citizen: 'Priya Sharma', category: 'Overflowing Bins', ward: 'W01', priority: 'CRITICAL', status: 'IN_PROGRESS', officer: 'Officer S. Kulkarni', created: '2026-07-09 14:15', desc: 'Main community bin is overflowing, street dog nuisance starting.' },
-  { id: 'CMP-2077', citizen: 'Aditya Gupta', category: 'Illegal Dumping', ward: 'W04', priority: 'HIGH', status: 'ASSIGNED', officer: 'Officer J. Roy', created: '2026-07-09 11:00', desc: 'Construction debris dumped next to the playground.' },
-  { id: 'CMP-2065', citizen: 'Neha Verma', category: 'Spillage', ward: 'W02', priority: 'LOW', status: 'RESOLVED', officer: 'Inspector M. Kumar', created: '2026-07-09 08:45', desc: 'Sludge spilled from waste collector truck on Deccan road.' },
-  { id: 'CMP-2059', citizen: 'Rohan Deshmukh', category: 'Missed Pickup', ward: 'W05', priority: 'MEDIUM', status: 'UNDER_REVIEW', officer: 'Unassigned', created: '2026-07-08 10:20', desc: 'Missed pickup for society composting bin.' },
-  { id: 'CMP-2041', citizen: 'Ananya Iyer', category: 'Overflowing Bins', ward: 'W06', priority: 'CRITICAL', status: 'RESOLVED', officer: 'Officer R. Sen', created: '2026-07-08 07:10', desc: 'Large waste overflow near vegetable market.' },
-  { id: 'CMP-2032', citizen: 'Kabir Kapoor', category: 'Illegal Dumping', ward: 'W01', priority: 'HIGH', status: 'PENDING', officer: 'Unassigned', created: '2026-07-07 16:30', desc: 'Plastic bags stacked next to drainage line.' },
-  { id: 'CMP-2022', citizen: 'Diya Joshi', category: 'Segregation Issue', ward: 'W03', priority: 'LOW', status: 'ASSIGNED', officer: 'Inspector R. Sen', created: '2026-07-07 11:00', desc: 'Commercial shop mixed plastic waste with wet organic waste.' },
-  { id: 'CMP-2015', citizen: 'Vikram Malhotra', category: 'Missed Pickup', ward: 'W02', priority: 'MEDIUM', status: 'REOPENED', officer: 'Officer J. Roy', created: '2026-07-07 09:12', desc: 'Third missed pickup in a row for lane 4.' },
-  { id: 'CMP-1999', citizen: 'Sanya Pillai', category: 'Spillage', ward: 'W04', priority: 'LOW', status: 'CLOSED', officer: 'Officer S. Kulkarni', created: '2026-07-06 13:00', desc: 'Wet sludge on road near medical shop.' },
-  { id: 'CMP-1988', citizen: 'Rahul Bansal', category: 'Overflowing Bins', ward: 'W05', priority: 'HIGH', status: 'RESOLVED', officer: 'Inspector M. Kumar', created: '2026-07-06 10:45', desc: 'Dumping bin at sector 3 park overflowing.' },
-  { id: 'CMP-1976', citizen: 'Meera Nair', category: 'Illegal Dumping', ward: 'W06', priority: 'MEDIUM', status: 'RESOLVED', officer: 'Officer R. Sen', created: '2026-07-05 14:00', desc: 'Tree cuttings dumped on main divider.' },
-  { id: 'CMP-1955', citizen: 'Arjun Rao', category: 'Segregation Issue', ward: 'W02', priority: 'LOW', status: 'CLOSED', officer: 'Inspector R. Sen', created: '2026-07-05 09:12', desc: 'Segregation guidelines not followed by apartments.' },
-  { id: 'CMP-1940', citizen: 'Ishaan Trivedi', category: 'Missed Pickup', ward: 'W01', priority: 'MEDIUM', status: 'RESOLVED', officer: 'Officer J. Roy', created: '2026-07-04 11:30', desc: 'Weekly bulk collection missed.' },
-  { id: 'CMP-1933', citizen: 'Avani Patil', category: 'Spillage', ward: 'W03', priority: 'LOW', status: 'RESOLVED', officer: 'Inspector R. Sen', created: '2026-07-04 09:00', desc: 'Garbage bag leakage on pavement.' },
-  { id: 'CMP-1920', citizen: 'Zoya Khan', category: 'Missed Pickup', ward: 'W05', priority: 'MEDIUM', status: 'PENDING', officer: 'Unassigned', created: '2026-07-03 16:15', desc: 'Missed collection from house 44.' },
-  { id: 'CMP-1911', citizen: 'Karan Singhal', category: 'Overflowing Bins', ward: 'W02', priority: 'CRITICAL', status: 'IN_PROGRESS', officer: 'Officer J. Roy', created: '2026-07-03 12:45', desc: 'Bin overflowing into main road traffic path.' },
-  { id: 'CMP-1902', citizen: 'Alisha Sen', category: 'Illegal Dumping', ward: 'W04', priority: 'HIGH', status: 'RESOLVED', officer: 'Officer S. Kulkarni', created: '2026-07-02 11:20', desc: 'Restaurant dumping kitchen waste behind community center.' },
-  { id: 'CMP-1899', citizen: 'Manish Pandey', category: 'Segregation Issue', ward: 'W01', priority: 'LOW', status: 'ASSIGNED', officer: 'Officer S. Kulkarni', created: '2026-07-02 09:00', desc: 'No dry waste collection bins provided.' },
-  { id: 'CMP-1888', citizen: 'Tara Deshpande', category: 'Missed Pickup', ward: 'W03', priority: 'MEDIUM', status: 'RESOLVED', officer: 'Inspector R. Sen', created: '2026-07-01 10:10', desc: 'Lane 1 collector did not stop.' },
-  { id: 'CMP-1877', citizen: 'Gaurav Das', category: 'Spillage', ward: 'W06', priority: 'LOW', status: 'CLOSED', officer: 'Officer R. Sen', created: '2026-06-30 15:40', desc: 'Liquid waste spillage during bin transfer.' },
-  { id: 'CMP-1865', citizen: 'Pooja Hegde', category: 'Overflowing Bins', ward: 'W05', priority: 'HIGH', status: 'PENDING', officer: 'Unassigned', created: '2026-06-30 08:30', desc: 'Market bins are completely full.' },
-  { id: 'CMP-1854', citizen: 'Kunal Kapoor', category: 'Illegal Dumping', ward: 'W02', priority: 'HIGH', status: 'IN_PROGRESS', officer: 'Officer J. Roy', created: '2026-06-29 11:00', desc: 'Dumping of medical waste boxes behind bus depot.' }
-];
+// We will load complaints and citizens from Appwrite live DB instead of mock array.
 
 export default function ComplaintsPage() {
-  const [complaints, setComplaints] = useState(initialMockComplaints);
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('filtered-complaints');
 
   // Filters State
   const [filters, setFilters] = useState<any>({
@@ -118,51 +97,88 @@ export default function ComplaintsPage() {
   const [page, setPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Filtered dataset computed at runtime
-  const filteredComplaints = useMemo(() => {
-    return complaints.filter((c) => {
-      if (filters.status !== 'ALL' && c.status !== filters.status) return false;
-      if (filters.priority !== 'ALL' && c.priority !== filters.priority) return false;
-      if (filters.ward !== 'ALL' && c.ward !== filters.ward) return false;
-      if (filters.category !== 'ALL' && c.category.toUpperCase().replace(' ', '_') !== filters.category) return false;
-      return true;
-    });
-  }, [complaints, filters]);
+  // Build API query parameters
+  const queryFilters = useMemo(() => {
+    if (activeTab === 'filtered-complaints') {
+      return {
+        status: filters.status,
+        priority: filters.priority,
+        category: filters.category,
+        ward: filters.ward,
+      };
+    } else {
+      return {
+        searchQuery: searchTerm || undefined,
+      };
+    }
+  }, [activeTab, filters, searchTerm]);
 
-  // All complaints list with text search applied
-  const allComplaintsList = useMemo(() => {
-    return complaints.filter((c) => {
-      const matchText = searchTerm.toLowerCase();
-      return (
-        c.id.toLowerCase().includes(matchText) ||
-        c.citizen.toLowerCase().includes(matchText) ||
-        c.category.toLowerCase().includes(matchText) ||
-        c.officer.toLowerCase().includes(matchText)
-      );
-    });
-  }, [complaints, searchTerm]);
+  const { data: complaintsData, loading, error, refetch } = useComplaints(queryFilters, page, itemsPerPage);
+  const { data: citizensData } = useCitizens(1, 100);
 
-  // Paginated chunk of the all list
-  const paginatedAllComplaints = useMemo(() => {
-    const startIndex = (page - 1) * itemsPerPage;
-    return allComplaintsList.slice(startIndex, startIndex + itemsPerPage);
-  }, [allComplaintsList, page]);
+  const citizenMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (citizensData?.data) {
+      citizensData.data.forEach((c) => map.set(c.id, c.name));
+    }
+    return map;
+  }, [citizensData]);
 
-  const totalPages = Math.ceil(allComplaintsList.length / itemsPerPage);
+  const complaintsList = useMemo(() => {
+    return (complaintsData?.data || []).map((c) => ({
+      ...c,
+      citizen: citizenMap.get(c.citizenId) || c.citizenId || 'Anonymous',
+      officer: c.assignedToWorkerName || 'Unassigned',
+      created: formatDate(c.createdAt),
+      desc: c.description,
+    }));
+  }, [complaintsData, citizenMap]);
 
-  // Resolving or Escalating actions for mock flow
+  const totalPages = Math.ceil((complaintsData?.total || 0) / itemsPerPage);
+
+  // Stats fetching
+  const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, resolved: 0 });
+
+  const fetchStats = async () => {
+    try {
+      const [totalRes, pendingCount, inProgressCount, resolvedCount] = await Promise.all([
+        complaintService.list(undefined, 1, 1),
+        complaintService.countByStatus('OPEN'),
+        complaintService.countByStatus('IN_PROGRESS'),
+        complaintService.countByStatus('RESOLVED'),
+      ]);
+      setStats({
+        total: totalRes.total,
+        pending: pendingCount,
+        inProgress: inProgressCount,
+        resolved: resolvedCount,
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [complaintsData]);
+
+  const { execute: updateStatus } = useAsyncAction(
+    async (id: string, newStatus: string) => {
+      await complaintService.update(id, { status: newStatus as any });
+      refetch();
+    }
+  );
+
   const handleUpdateStatus = (id: string, newStatus: string) => {
-    setComplaints((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: newStatus } : c))
-    );
+    updateStatus(id, newStatus);
     setSelectedComplaint(null);
   };
 
   const statCards = [
-    { label: 'Total', value: complaints.length, trend: '+12.5%', up: true, icon: AlertCircle },
-    { label: 'Pending', value: complaints.filter((c) => c.status === 'PENDING').length, trend: '+5%', up: false, icon: Clock },
-    { label: 'In Progress', value: complaints.filter((c) => c.status === 'IN_PROGRESS').length, trend: '+8%', up: true, icon: Zap },
-    { label: 'Resolved', value: complaints.filter((c) => c.status === 'RESOLVED').length, trend: '+15%', up: true, icon: CheckCircle },
+    { label: 'Total', value: stats.total, trend: '+12.5%', up: true, icon: AlertCircle },
+    { label: 'Pending', value: stats.pending, trend: '+5%', up: false, icon: Clock },
+    { label: 'In Progress', value: stats.inProgress, trend: '+8%', up: true, icon: Zap },
+    { label: 'Resolved', value: stats.resolved, trend: '+15%', up: true, icon: CheckCircle },
   ];
 
   return (
@@ -193,7 +209,7 @@ export default function ComplaintsPage() {
           </div>
 
           {/* Tabular datasets block */}
-          <Tabs defaultValue="filtered-complaints" className="w-full space-y-4">
+          <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); setPage(1); }} className="w-full space-y-4">
             <TabsList>
               <TabsTrigger value="filtered-complaints">Filtered Complaints</TabsTrigger>
               <TabsTrigger value="all-complaints">All Complaints</TabsTrigger>
@@ -219,7 +235,7 @@ export default function ComplaintsPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="ALL">All Statuses</SelectItem>
-                          <SelectItem value="PENDING">Pending</SelectItem>
+                          <SelectItem value="OPEN">Pending</SelectItem>
                           <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
                           <SelectItem value="ASSIGNED">Assigned</SelectItem>
                           <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
@@ -301,10 +317,10 @@ export default function ComplaintsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Filtered Results</CardTitle>
-                  <CardDescription>Reviewing {filteredComplaints.length} complaints matching criteria</CardDescription>
+                  <CardDescription>Reviewing {complaintsData?.total || 0} complaints matching criteria</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {filteredComplaints.length === 0 ? (
+                  {complaintsList.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-2">
                       <Search className="size-8 text-muted-foreground/40" />
                       <p className="text-sm font-medium">No matching complaints</p>
@@ -327,7 +343,7 @@ export default function ComplaintsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredComplaints.map((item) => (
+                          {complaintsList.map((item) => (
                             <TableRow key={item.id}>
                               <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
                               <TableCell>{item.category}</TableCell>
@@ -421,7 +437,7 @@ export default function ComplaintsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {paginatedAllComplaints.length === 0 ? (
+                  {complaintsList.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-2">
                       <Search className="size-8 text-muted-foreground/40" />
                       <p className="text-sm font-medium">No results found</p>
@@ -443,7 +459,7 @@ export default function ComplaintsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {paginatedAllComplaints.map((item) => (
+                          {complaintsList.map((item) => (
                             <TableRow key={item.id}>
                               <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
                               <TableCell>{item.category}</TableCell>

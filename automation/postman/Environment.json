@@ -1,0 +1,31 @@
+{
+  "name": "WasteFlow Local",
+  "values": [
+    {
+      "key": "n8n_url",
+      "value": "http://localhost:5678",
+      "enabled": true
+    },
+    {
+      "key": "complaintId",
+      "value": "65e6488d011ff23acdb0",
+      "enabled": true
+    },
+    {
+      "key": "citizenId",
+      "value": "65e64b8d009fc22a",
+      "enabled": true
+    },
+    {
+      "key": "notificationId",
+      "value": "65e64a220268c11bf20d",
+      "enabled": true
+    },
+    {
+      "key": "workerId",
+      "value": "WRK-001",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

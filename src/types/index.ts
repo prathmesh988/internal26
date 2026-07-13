@@ -379,6 +379,7 @@ export interface FilterState {
   dateFrom?: string;
   dateTo?: string;
   searchQuery?: string;
+  citizenId?: string;
 }
 
 export interface PaginationState {

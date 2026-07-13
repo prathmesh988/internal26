@@ -61,19 +61,19 @@ const statusStyles: Record<string, string> = {
   CLOSED: 'bg-muted text-muted-foreground border-border',
 };
 
-// Realistic mock data of logged-in user's complaints
-const localMyComplaints = [
-  { id: 'CMP-2081', title: 'Overflowing community dump bin', category: 'OVERFLOW', wardCode: 'W01', priority: 'CRITICAL', status: 'IN_PROGRESS', createdAt: '2026-07-09T14:15:00Z', desc: 'Garbage bin at the corner is full and spilling on street.', assignedToWorkerName: 'Rajesh Patil' },
-  { id: 'CMP-2059', title: 'Missed garbage pickup on lane 3', category: 'MISSED_PICKUP', wardCode: 'W05', priority: 'MEDIUM', status: 'OPEN', createdAt: '2026-07-08T10:20:00Z', desc: 'Collection truck did not visit our building this morning.', assignedToWorkerName: null },
-  { id: 'CMP-1999', title: 'Construction debris dumped illegally', category: 'ILLEGAL_DUMPING', wardCode: 'W04', priority: 'LOW', status: 'CLOSED', createdAt: '2026-07-06T13:00:00Z', desc: 'Debris dumped next to local park wall.', assignedToWorkerName: 'Suresh Kumar' },
-  { id: 'CMP-1955', title: 'Commercial shop organic waste dumping', category: 'SEGREGATION', wardCode: 'W02', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-07-05T09:12:00Z', desc: 'Wet and dry waste mixed by hotel kitchen.', assignedToWorkerName: 'Inspector R. Sen' },
-  { id: 'CMP-1940', title: 'Monthly bulky trash pickup missed', category: 'MISSED_PICKUP', wardCode: 'W01', priority: 'MEDIUM', status: 'RESOLVED', createdAt: '2026-07-04T11:30:00Z', desc: 'Bulk items left on road corner.', assignedToWorkerName: 'Rajesh Shinde' },
-  { id: 'CMP-1933', title: 'Leaking garbage bags spill on sidewalk', category: 'SPILL', wardCode: 'W03', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-07-04T09:00:00Z', desc: 'Foul liquid leaking onto pavement.', assignedToWorkerName: 'Ramesh Chawla' },
-  { id: 'CMP-1899', title: 'Non-segregated waste mixing', category: 'SEGREGATION', wardCode: 'W01', priority: 'LOW', status: 'RESOLVED', createdAt: '2026-07-02T09:00:00Z', desc: 'Apartment complex garbage mixed.', assignedToWorkerName: 'Rajesh Shinde' }
-];
-
 export default function MyComplaintsPage() {
-  const [complaints, setComplaints] = useState(localMyComplaints);
+  const { data: allCitizenComplaints } = useComplaints({ citizenId: 'citizen-001' }, 1, 100);
+
+  const complaints = useMemo(() => {
+    return (allCitizenComplaints?.data || []).map((c) => ({
+      ...c,
+      citizen: 'citizen-001',
+      officer: c.assignedToWorkerName || 'Unassigned',
+      created: formatDate(c.createdAt),
+      desc: c.description,
+    }));
+  }, [allCitizenComplaints]);
+
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 

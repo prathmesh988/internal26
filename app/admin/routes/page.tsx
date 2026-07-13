@@ -37,6 +37,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
+import { useRoutes } from '@/hooks';
 
 function getRouteStatusBadgeClass(status: string) {
   switch (status.toUpperCase()) {
@@ -53,51 +54,58 @@ function getRouteStatusBadgeClass(status: string) {
   }
 }
 
-// 15+ mock active routes
-const activeMockRoutes = [
-  { name: 'RT-Ward03-Primary', vehicle: 'MH-12-GQ-4920', driver: 'Sanjay Dutt', startTime: '07:30 AM', completion: 75, eta: '10:45 AM', status: 'Running' },
-  { name: 'RT-Ward01-Secondary', vehicle: 'MH-12-HU-9871', driver: 'Rajesh Shinde', startTime: '08:00 AM', completion: 40, eta: '11:30 AM', status: 'Running' },
-  { name: 'RT-Ward05-Bulk', vehicle: 'MH-12-ER-3829', driver: 'Dilip Rao', startTime: '06:45 AM', completion: 95, eta: '09:15 AM', status: 'Running' },
-  { name: 'RT-Ward06-Primary', vehicle: 'MH-12-PL-9022', driver: 'Manoj Bajpayee', startTime: '07:15 AM', completion: 85, eta: '10:15 AM', status: 'Running' },
-  { name: 'RT-Ward02-Primary', vehicle: 'MH-12-QW-5867', driver: 'Devendra Patil', startTime: '08:30 AM', completion: 30, eta: '12:00 PM', status: 'Running' },
-  { name: 'RT-Ward05-Secondary', vehicle: 'MH-12-AZ-3498', driver: 'Kailash Kher', startTime: '07:45 AM', completion: 55, eta: '11:15 AM', status: 'Running' },
-  { name: 'RT-Ward04-Express', vehicle: 'MH-12-FT-2039', driver: 'Vijay Chauhan', startTime: '09:00 AM', completion: 15, eta: '01:30 PM', status: 'Delayed' },
-  { name: 'RT-Ward03-Sweeping', vehicle: 'MH-12-XW-1049', driver: 'Sunil Shetty', startTime: '05:30 AM', completion: 100, eta: 'Completed', status: 'Completed' }
-];
-
-// 20+ mock all routes
-const allMockRoutes = [
-  { route: 'RT-Ward03-Primary', ward: 'W03', vehicle: 'MH-12-GQ-4920', totalStops: 45, todayStops: 34, completion: 75, lastUpdated: 'Just now', status: 'Running' },
-  { route: 'RT-Ward01-Secondary', ward: 'W01', vehicle: 'MH-12-HU-9871', totalStops: 35, todayStops: 14, completion: 40, lastUpdated: '3 min ago', status: 'Running' },
-  { route: 'RT-Ward05-Bulk', ward: 'W05', vehicle: 'MH-12-ER-3829', totalStops: 28, todayStops: 27, completion: 95, lastUpdated: 'Just now', status: 'Running' },
-  { route: 'RT-Ward06-Primary', ward: 'W06', vehicle: 'MH-12-PL-9022', totalStops: 50, todayStops: 42, completion: 85, lastUpdated: '8 min ago', status: 'Running' },
-  { route: 'RT-Ward02-Primary', ward: 'W02', vehicle: 'MH-12-QW-5867', totalStops: 40, todayStops: 12, completion: 30, lastUpdated: '2 min ago', status: 'Running' },
-  { route: 'RT-Ward05-Secondary', ward: 'W05', vehicle: 'MH-12-AZ-3498', totalStops: 32, todayStops: 18, completion: 55, lastUpdated: 'Just now', status: 'Running' },
-  { route: 'RT-Ward04-Express', ward: 'W04', vehicle: 'MH-12-FT-2039', totalStops: 20, todayStops: 3, completion: 15, lastUpdated: '15 min ago', status: 'Delayed' },
-  { route: 'RT-Ward03-Sweeping', ward: 'W03', vehicle: 'MH-12-XW-1049', totalStops: 25, todayStops: 25, completion: 100, lastUpdated: '4 hours ago', status: 'Completed' },
-  { route: 'RT-Ward01-Alternate', ward: 'W01', vehicle: 'MH-12-OP-8973', totalStops: 30, todayStops: 0, completion: 0, lastUpdated: 'Scheduled', status: 'Scheduled' },
-  { route: 'RT-Ward04-Morning', ward: 'W04', vehicle: 'MH-12-TR-9081', totalStops: 38, todayStops: 38, completion: 100, lastUpdated: '6 hours ago', status: 'Completed' },
-  { route: 'RT-Ward02-Bulk', ward: 'W02', vehicle: 'MH-12-UY-8890', totalStops: 15, todayStops: 0, completion: 0, lastUpdated: 'Scheduled', status: 'Scheduled' },
-  { route: 'RT-Ward06-Night', ward: 'W06', vehicle: 'MH-12-MN-2287', totalStops: 42, todayStops: 0, completion: 0, lastUpdated: 'Scheduled', status: 'Scheduled' }
-];
-
 export default function RoutesPage() {
-  const totalRoutes = allMockRoutes.length;
-  const runningRoutes = allMockRoutes.filter((r) => r.status === 'Running').length;
-  const completedRoutes = allMockRoutes.filter((r) => r.status === 'Completed').length;
-  const delayedRoutes = allMockRoutes.filter((r) => r.status === 'Delayed').length;
-  const scheduledRoutes = allMockRoutes.filter((r) => r.status === 'Scheduled').length;
+  const { data: allRoutesData } = useRoutes(1, 100);
 
-  const avgEfficiency = Math.round(
-    allMockRoutes.reduce((sum, r) => sum + r.completion, 0) / totalRoutes
-  );
+  const allRoutes = useMemo(() => {
+    return (allRoutesData?.data || []).map((r) => {
+      const totalStops = r.checkpoints?.length || 0;
+      const todayStops = r.checkpoints?.filter((cp) => cp.status === 'COMPLETED').length || 0;
+      const completion = r.efficiency || (totalStops > 0 ? Math.round((todayStops / totalStops) * 100) : 0);
+
+      let displayStatus = 'Scheduled';
+      if (r.status === 'IN_PROGRESS') displayStatus = 'Running';
+      else if (r.status === 'COMPLETED') displayStatus = 'Completed';
+      else if (r.status === 'FAILED') displayStatus = 'Delayed';
+      else if (r.status === 'PLANNED') displayStatus = 'Scheduled';
+
+      return {
+        name: r.name,
+        route: r.name,
+        ward: r.wardCode,
+        vehicle: r.vehicleId || 'Unassigned',
+        driver: r.workerName || 'Unassigned',
+        startTime: r.startedAt ? new Date(r.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+        totalStops,
+        todayStops,
+        completion,
+        eta: r.status === 'COMPLETED' ? 'Completed' : (r.scheduledFor ? new Date(r.scheduledFor).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'),
+        lastUpdated: r.completedAt ? 'Completed' : 'Just now',
+        status: displayStatus,
+      };
+    });
+  }, [allRoutesData]);
+
+  const activeRoutes = useMemo(() => {
+    return allRoutes.filter((r) => r.status === 'Running' || r.status === 'Delayed');
+  }, [allRoutes]);
+
+  const totalRoutes = allRoutes.length;
+  const runningRoutes = allRoutes.filter((r) => r.status === 'Running').length;
+  const completedRoutes = allRoutes.filter((r) => r.status === 'Completed').length;
+  const delayedRoutes = allRoutes.filter((r) => r.status === 'Delayed').length;
+  const scheduledRoutes = allRoutes.filter((r) => r.status === 'Scheduled').length;
+
+  const avgEfficiency = totalRoutes > 0 ? Math.round(
+    allRoutes.reduce((sum, r) => sum + r.completion, 0) / totalRoutes
+  ) : 0;
 
   const efficiencyData = Array.from({ length: 12 }, (_, i) => ({
     name: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i],
     efficiency: Math.floor(Math.random() * 20) + 80,
   }));
 
-  const routesByWard = allMockRoutes.reduce((acc: any, r: any) => {
+  const routesByWard = allRoutes.reduce((acc: any, r: any) => {
     const existing = acc.find((item: any) => item.name === r.ward);
     if (existing) { existing.value++; }
     else { acc.push({ name: r.ward, value: 1 }); }
@@ -217,7 +225,7 @@ export default function RoutesPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {activeMockRoutes.map((item) => (
+                      {activeRoutes.map((item) => (
                         <TableRow key={item.name}>
                           <TableCell className="font-semibold text-foreground">{item.name}</TableCell>
                           <TableCell className="font-mono text-xs text-muted-foreground">{item.vehicle}</TableCell>
@@ -267,7 +275,7 @@ export default function RoutesPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {allMockRoutes.map((item) => (
+                      {allRoutes.map((item) => (
                         <TableRow key={item.route}>
                           <TableCell className="font-semibold text-foreground">{item.route}</TableCell>
                           <TableCell>{item.ward}</TableCell>

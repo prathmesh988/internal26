@@ -1,0 +1,178 @@
+{
+  "info": {
+    "name": "WasteFlow Webhooks",
+    "_postman_id": "a987d65b-f78a-45c1-92b4-e3c3b01859c7",
+    "description": "Postman collection to trigger and test WasteFlow n8n webhooks locally or in staging.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "WF-Complaint-Automation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"complaintId\": \"{{complaintId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{n8n_url}}/webhook/complaint-automation",
+          "host": [
+            "{{n8n_url}}"
+          ],
+          "path": [
+            "webhook",
+            "complaint-automation"
+          ]
+        },
+        "description": "Triggers the core complaint auto-assignment and notification dispatch pipeline."
+      },
+      "response": []
+    },
+    {
+      "name": "WF-Worker-Assignment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"complaintId\": \"{{complaintId}}\",\n  \"wardCode\": \"W03\"\n}"
+        },
+        "url": {
+          "raw": "{{n8n_url}}/webhook/worker-assignment",
+          "host": [
+            "{{n8n_url}}"
+          ],
+          "path": [
+            "webhook",
+            "worker-assignment"
+          ]
+        },
+        "description": "Triggers candidate worker ranking and selection filters for a specific ward."
+      },
+      "response": []
+    },
+    {
+      "name": "WF-Notification-Dispatcher",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notificationId\": \"{{notificationId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{n8n_url}}/webhook/notification-dispatcher",
+          "host": [
+            "{{n8n_url}}"
+          ],
+          "path": [
+            "webhook",
+            "notification-dispatcher"
+          ]
+        },
+        "description": "Dispatches a recorded notification to standard communication channels (Email, SMS, Push)."
+      },
+      "response": []
+    },
+    {
+      "name": "WF-Complaint-Resolution",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"complaintId\": \"{{complaintId}}\",\n  \"workerId\": \"{{workerId}}\",\n  \"resolutionNotes\": \"Swept waste spillage and sanitized dustbins.\"\n}"
+        },
+        "url": {
+          "raw": "{{n8n_url}}/webhook/complaint-resolution",
+          "host": [
+            "{{n8n_url}}"
+          ],
+          "path": [
+            "webhook",
+            "complaint-resolution"
+          ]
+        },
+        "description": "Marks a complaint as resolved, records resolution times, frees the assigned worker, and triggers rewards."
+      },
+      "response": []
+    },
+    {
+      "name": "WF-Reward-System",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"citizenId\": \"{{citizenId}}\",\n  \"points\": 50,\n  \"reason\": \"SEGREGATION\"\n}"
+        },
+        "url": {
+          "raw": "{{n8n_url}}/webhook/reward-system",
+          "host": [
+            "{{n8n_url}}"
+          ],
+          "path": [
+            "webhook",
+            "reward-system"
+          ]
+        },
+        "description": "Adds reward points to a citizen's profile and tracks the credit event history."
+      },
+      "response": []
+    },
+    {
+      "name": "WF-Citizen-Activity",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"citizenId\": \"{{citizenId}}\",\n  \"activityType\": \"COMPLAINT_CREATED\"\n}"
+        },
+        "url": {
+          "raw": "{{n8n_url}}/webhook/citizen-activity",
+          "host": [
+            "{{n8n_url}}"
+          ],
+          "path": [
+            "webhook",
+            "citizen-activity"
+          ]
+        },
+        "description": "Logs user activity milestones to increment active statistics."
+      },
+      "response": []
+    }
+  ]
+}
