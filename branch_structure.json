@@ -1,0 +1,21 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "Deepika2",
+    "ambika",
+    "main",
+    "origin"
+  ],
+  "parent": {
+    "Deepika2": "main",
+    "ambika": "main",
+    "main": null,
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "Deepika2",
+    "ambika",
+    "origin"
+  ]
+}

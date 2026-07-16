@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { Complaint, Citizen, Worker, Vehicle, Route, Notification, FilterState } from '@/types';
+import { authService } from '@/services/appwrite/client';
 
 // ============================================================================
 // DASHBOARD STATE
@@ -140,13 +141,15 @@ export const useUserStore = create<UserState>((set) => ({
       isAuthenticated: true,
     }),
 
-  logout: () =>
+  logout: () => {
+    authService.logout().catch(err => console.error('Appwrite logout failed:', err));
     set({
       userType: null,
       userId: null,
       userEmail: null,
       isAuthenticated: false,
-    }),
+    });
+  },
 }));
 
 // ============================================================================

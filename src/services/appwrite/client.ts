@@ -845,3 +845,96 @@ export const rewardService = {
     return response.documents.reduce((sum, r) => sum + (r.pointsAwarded || 0), 0);
   },
 };
+
+// ============================================================================
+// AUTHENTICATION OPERATIONS
+// ============================================================================
+
+export const authService = {
+  // Check if session exists and return current user + role
+  async getCurrentUser() {
+    try {
+      const user = await account.get();
+      
+      // Determine user role
+      // 1. Try checking the citizen collection first
+      try {
+        const citizenDoc = await databases.getDocument(DATABASE_ID, 'citizens', user.$id);
+        if (citizenDoc) return { user, role: 'CITIZEN' as const };
+      } catch (e) {
+        // Not a citizen
+      }
+
+      // 2. Try checking the workers collection
+      try {
+        const workerDoc = await databases.getDocument(DATABASE_ID, 'workers', user.$id);
+        if (workerDoc) return { user, role: workerDoc.role as 'ADMIN' | 'WORKER' | 'COLLECTOR' };
+      } catch (e) {
+        // Not a worker
+      }
+
+      // Check fallback or domain-based roles if not in collection yet
+      if (user.email.endsWith('@municipal.gov') || user.email.endsWith('@wasteflow.in')) {
+        return { user, role: 'ADMIN' as const };
+      }
+
+      return { user, role: 'CITIZEN' as const }; // Fallback
+    } catch (error) {
+      return null;
+    }
+  },
+
+  // Log in using Email & Password
+  async login(email: string, password: string) {
+    // Delete any existing session first
+    try {
+      await account.deleteSession('current');
+    } catch (e) {}
+    
+    await account.createEmailPasswordSession(email, password);
+    return this.getCurrentUser();
+  },
+
+  // Sign up a new Citizen
+  async signupCitizen(email: string, password: string, name: string, wardCode: string = "W01") {
+    // 1. Create Appwrite Auth User
+    const userId = ID.unique();
+    await account.create(userId, email, password, name);
+    
+    // 2. Log in to create a session immediately
+    await account.createEmailPasswordSession(email, password);
+
+    const wardNames: Record<string, string> = {
+      "W01": "Ward 01 – Shivaji Nagar",
+      "W02": "Ward 02 – Aundh",
+      "W03": "Ward 03 – Kothrud",
+      "W04": "Ward 04 – Hadapsar",
+      "W05": "Ward 05 – Katraj",
+      "W06": "Ward 06 – Viman Nagar"
+    };
+
+    // 3. Create the corresponding profile in citizens collection
+    await databases.createDocument(DATABASE_ID, 'citizens', userId, {
+      email,
+      name,
+      phone: "0000000000", // Placeholder to satisfy schema
+      ward: wardNames[wardCode] || "Ward 01 – Shivaji Nagar",
+      wardCode,
+      address: "Registration Address",
+      rewardPoints: 0,
+      completedSurveys: 0,
+      complaintsFiled: 0,
+      complianceScore: 100,
+      createdAt: new Date().toISOString(),
+      lastActivityAt: new Date().toISOString(),
+    });
+
+    return this.getCurrentUser();
+  },
+
+  // Log out current session
+  async logout() {
+    await account.deleteSession('current');
+  }
+};
+
