@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { CheckCircle2, MapPin, Clock } from 'lucide-react';
 
 // --- Interactive Navigation Components ---
 function InteractiveCTA({ href, text, primary = false }: { href: string, text: string, primary?: boolean }) {
@@ -186,21 +187,39 @@ export default function LandingPage() {
         {/* Hero Graphic Placeholder */}
         <div className="max-w-5xl mx-auto mt-16 relative">
           <div className="bg-white rounded-3xl shadow-2xl border border-[#f3e8e4] p-4 md:p-12">
-            <img src="https://images.unsplash.com/photo-1449824913935-59a10b8d2000?q=80&w=2070&auto=format&fit=crop" alt="City View" className="w-full rounded-xl opacity-80 mix-blend-multiply object-cover h-[300px] md:h-[500px]" />
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-4 md:p-10">
+            <img src="/hero-image.jpeg" alt="City View" className="w-full rounded-xl opacity-80 mix-blend-multiply object-cover h-[300px] md:h-[500px]" />
+            <div className="absolute inset-0 flex items-start justify-center pointer-events-none pt-8 md:pt-14">
                <motion.div 
-                 animate={{ y: [0, -10, 0] }}
-                 transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                 className="bg-white shadow-xl rounded-2xl p-6 border border-orange-100 max-w-md w-full pointer-events-auto"
+                 animate={{ y: [0, -8, 0] }}
+                 transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                 className="bg-white/95 backdrop-blur-xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] rounded-2xl p-5 border border-white/50 max-w-sm w-full pointer-events-auto"
                >
-                    <div className="flex justify-between items-center mb-4">
-                        <span className="font-bold text-[#ff5c35]">REPORT #4092</span>
-                        <span className="bg-orange-50 text-[#ff5c35] text-xs px-2 py-1 rounded">Resolved</span>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center">
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[#1a1a1a] text-sm leading-none mb-1">Issue Resolved</h4>
+                        <span className="text-[#666666] text-xs flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Just now
+                        </span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                        <div className="h-2 w-3/4 bg-gray-100 rounded"></div>
-                        <div className="h-2 w-1/2 bg-gray-100 rounded"></div>
-                    </div>
+                    <span className="bg-[#fef5f2] text-[#ff5c35] text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md">
+                      Report #4092
+                    </span>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-xl p-3 mb-1 border border-gray-100">
+                    <p className="text-[#1a1a1a] font-medium text-sm flex items-center gap-2 mb-1">
+                      <MapPin className="w-3 h-3 text-[#666666]" /> 
+                      Shivaji Nagar, Sector 4
+                    </p>
+                    <p className="text-[#666666] text-xs pl-5">
+                      Overflowing bin cleared and area sanitized.
+                    </p>
+                  </div>
                </motion.div>
             </div>
           </div>
