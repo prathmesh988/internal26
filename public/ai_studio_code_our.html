@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quid AI - AI Agents for AP/AR Workflows</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- GSAP for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        quid: {
+                            orange: '#ff5c35',
+                            orangeHover: '#e04a2a',
+                            lightBg: '#fef5f2',
+                            textDark: '#1a1a1a',
+                            textGray: '#666666',
+                            border: '#f3e8e4'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #ffffff; }
+        .hero-gradient {
+            background: linear-gradient(180deg, #fef5f2 0%, #ffffff 100%);
+        }
+        .testimonial-gradient {
+            background: linear-gradient(135deg, #ff6b4a 0%, #ff3d77 100%);
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .active .accordion-content {
+            max-height: 200px;
+        }
+        .active .accordion-icon {
+            transform: rotate(45deg);
+        }
+    </style>
+</head>
+<body class="text-quid-textDark">
+
+    <!-- Navigation -->
+    <nav class="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto w-full sticky top-0 bg-white/80 backdrop-blur-md z-50">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-quid-orange rounded-lg flex items-center justify-center">
+                <span class="text-white font-bold text-xl">Q</span>
+            </div>
+            <span class="font-bold text-xl tracking-tight">Quid AI</span>
+        </div>
+        <a href="#" class="bg-quid-orange text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-quid-orangeHover transition-all shadow-sm">
+            Book a demo
+        </a>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient pt-16 pb-24 px-6">
+        <div class="max-w-4xl mx-auto text-center space-y-6">
+            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
+                AI agents for your <span class="bg-red-100 px-2 rounded">AP/AR workflows</span>
+            </h1>
+            <p class="text-quid-textGray text-lg md:text-xl max-w-2xl mx-auto">
+                Quid AI helps finance teams eliminate manual invoice work with AI agents that connect directly to accounting ERPs like <span class="font-semibold">DATEV, LexOffice, NetSuite</span> and more.
+            </p>
+            <div class="pt-4">
+                <button class="bg-quid-orange text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-quid-orangeHover transition-all shadow-lg">
+                    Start free 14-day trial
+                </button>
+                <p class="text-quid-textGray text-xs mt-3">Easy setup in minutes</p>
+            </div>
+        </div>
+
+        <!-- Hero Graphic Placeholder -->
+        <div class="max-w-5xl mx-auto mt-16 relative">
+            <div class="bg-white rounded-3xl shadow-2xl border border-quid-border p-4 md:p-12">
+                <img src="https://cdn.pixabay.com/photo/2022/01/17/17/20/dashboard-6945325_1280.png" alt="Dashboard Illustration" class="w-full rounded-xl opacity-80 mix-blend-multiply">
+                <!-- Overlay "Invoice" representation -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none p-10">
+                   <div class="bg-white shadow-xl rounded-2xl p-6 border border-orange-100 max-w-md w-full animate-bounce">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="font-bold text-quid-orange">INVOICE</span>
+                            <span class="bg-orange-50 text-quid-orange text-xs px-2 py-1 rounded">Processing...</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="h-2 w-3/4 bg-gray-100 rounded"></div>
+                            <div class="h-2 w-1/2 bg-gray-100 rounded"></div>
+                        </div>
+                   </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Social Proof -->
+    <section class="py-12 border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6">
+            <p class="text-center text-quid-textGray text-sm font-medium mb-10">Trusted by modern finance teams</p>
+            <div class="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-50 grayscale">
+                <span class="font-bold text-xl">Genesis Cloud</span>
+                <span class="font-bold text-xl italic">cookouts.</span>
+                <span class="font-black text-xl">JINX</span>
+                <span class="font-serif text-xl">ARC</span>
+                <span class="font-mono font-bold text-xl">Alta Via</span>
+                <span class="font-medium text-xl">We Love Accounting</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Workflows Section -->
+    <section class="py-24 px-6 max-w-7xl mx-auto">
+        <div class="text-center mb-20">
+            <h2 class="text-3xl md:text-4xl font-extrabold mb-4">Invoice workflows embedded where work happens</h2>
+            <p class="text-quid-textGray">Let AI agents handle your team's manual AP/AR workflows.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-12">
+            <!-- Left Card -->
+            <div class="space-y-6 scroll-reveal">
+                <h3 class="text-2xl font-bold">Book incoming invoices to your ERP</h3>
+                <p class="text-quid-textGray">Quid's AI agents update your ERP with payable invoices from multiple sources.</p>
+                <div class="bg-quid-lightBg rounded-3xl p-8 aspect-video flex flex-col justify-center items-center border border-orange-50">
+                    <div class="flex gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl">💬</div>
+                        <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl">📧</div>
+                        <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl">📂</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-md w-full max-w-xs border border-orange-200">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-quid-orange rounded-full"></div>
+                            <span class="text-xs font-bold">Quid AI is processing invoice...</span>
+                        </div>
+                    </div>
+                </div>
+                <ul class="space-y-3">
+                    <li class="flex items-center gap-3 text-sm text-quid-textGray">
+                        <span class="text-green-500">●</span> Watch for invoices from email, portals, or shared inboxes
+                    </li>
+                    <li class="flex items-center gap-3 text-sm text-quid-textGray">
+                        <span class="text-green-500">●</span> Make a decision on the most appropriate vendor account, GL code
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Right Card -->
+            <div class="space-y-6 scroll-reveal">
+                <h3 class="text-2xl font-bold">Book outgoing invoices to your ERP</h3>
+                <p class="text-quid-textGray">Quid's AI agents help collect receivable invoices on time and update your ERP.</p>
+                <div class="bg-quid-lightBg rounded-3xl p-8 aspect-video flex flex-col justify-center items-center border border-orange-50">
+                    <div class="flex gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl">💳</div>
+                        <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl">💸</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-md w-full max-w-xs border border-orange-200">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-quid-orange rounded-full"></div>
+                            <span class="text-xs font-bold">Quid AI is syncing data...</span>
+                        </div>
+                    </div>
+                </div>
+                <ul class="space-y-3">
+                    <li class="flex items-center gap-3 text-sm text-quid-textGray">
+                        <span class="text-green-500">●</span> Sync invoices and payment data from Stripe, Chargebee
+                    </li>
+                    <li class="flex items-center gap-3 text-sm text-quid-textGray">
+                        <span class="text-green-500">●</span> Auto-follow up on multiple channels and collect unpaid invoices
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonial Section -->
+    <section class="px-6 py-12">
+        <div class="max-w-5xl mx-auto testimonial-gradient rounded-[40px] p-12 md:p-20 text-white text-center">
+            <h3 class="text-2xl md:text-4xl font-bold leading-snug mb-10">
+                "Quid saves us hours each week by posting invoices from email and Stripe into DATEV in seconds, accurately categorized, with only exceptions flagged. It's now indispensable for our finance team."
+            </h3>
+            <div class="flex flex-col items-center gap-4">
+                <img src="https://i.pravatar.cc/100?img=12" alt="CFO" class="w-16 h-16 rounded-full border-2 border-white/30">
+                <div>
+                    <p class="font-bold">Christopher Heberlein</p>
+                    <p class="text-white/80 text-sm">CFO, Genesis Cloud</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Privacy Section -->
+    <section class="py-24 px-6 bg-quid-lightBg mt-24">
+        <div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-20">
+            <div>
+                <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-2xl mb-6">🔒</div>
+                <h2 class="text-3xl font-extrabold mb-6">We take data privacy very seriously</h2>
+                <p class="text-quid-textGray">We are committed to protecting your financial data with enterprise-grade security.</p>
+            </div>
+            <div class="space-y-10">
+                <div>
+                    <h4 class="font-bold flex items-center gap-2 mb-2">
+                        <span class="text-blue-600">🇪🇺</span> GDPR compliant
+                    </h4>
+                    <p class="text-sm text-quid-textGray leading-relaxed">We are fully GDPR compliant, ensuring the highest standards of data privacy and security for your financial information.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-2">Data control</h4>
+                    <p class="text-sm text-quid-textGray leading-relaxed">Your data will not be used to train AI models available publicly. You have full control of your data at all times.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-24 px-6 max-w-5xl mx-auto">
+        <div class="grid md:grid-cols-3 gap-12">
+            <div class="md:col-span-1">
+                <h2 class="text-3xl font-extrabold mb-4">Frequently asked questions</h2>
+                <p class="text-quid-textGray text-sm">Everything you need to know about the product and billing. Can't find the answer you're looking for? Please chat to our team.</p>
+                <a href="#" class="text-quid-orange font-bold text-sm inline-block mt-6">See all FAQs ↗</a>
+            </div>
+            <div class="md:col-span-2 space-y-4">
+                <!-- FAQ Item 1 -->
+                <div class="accordion-item border border-quid-border rounded-2xl p-6 active bg-quid-lightBg/30">
+                    <button class="flex justify-between items-center w-full text-left font-bold" onclick="toggleAccordion(this)">
+                        <span>What is Quid?</span>
+                        <span class="accordion-icon transition-transform text-2xl text-quid-orange">+</span>
+                    </button>
+                    <div class="accordion-content pt-4 text-sm text-quid-textGray">
+                        Quid is an AI-powered platform that automates accounts payable and receivable (AP/AR) workflows. It connects to your ERP, email, and invoice tools to eliminate manual data entry and speed up invoice processing.
+                    </div>
+                </div>
+                <!-- FAQ Item 2 -->
+                <div class="accordion-item border border-quid-border rounded-2xl p-6">
+                    <button class="flex justify-between items-center w-full text-left font-bold" onclick="toggleAccordion(this)">
+                        <span>Who is Quid for?</span>
+                        <span class="accordion-icon transition-transform text-2xl text-quid-orange">+</span>
+                    </button>
+                    <div class="accordion-content pt-4 text-sm text-quid-textGray">
+                        Quid is designed for modern finance teams and accounting firms looking to scale operations without increasing headcount.
+                    </div>
+                </div>
+                <!-- FAQ Item 3 -->
+                <div class="accordion-item border border-quid-border rounded-2xl p-6">
+                    <button class="flex justify-between items-center w-full text-left font-bold" onclick="toggleAccordion(this)">
+                        <span>Is Quid secure?</span>
+                        <span class="accordion-icon transition-transform text-2xl text-quid-orange">+</span>
+                    </button>
+                    <div class="accordion-content pt-4 text-sm text-quid-textGray">
+                        Yes, we use enterprise-grade encryption and are fully GDPR compliant.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="py-24 px-6 bg-quid-lightBg mb-12 mx-6 rounded-[40px] text-center">
+        <h2 class="text-3xl font-extrabold mb-4">Still have questions?</h2>
+        <p class="text-quid-textGray mb-8">Can't find the answer you're looking for? Talk to our team.</p>
+        <button class="bg-quid-orange text-white px-8 py-4 rounded-xl font-bold hover:bg-quid-orangeHover transition-all shadow-lg">
+            Get in touch
+        </button>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-quid-orange py-20 px-6 text-white/90">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-10">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-xl">Q</span>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-white">Quid AI</span>
+                </div>
+                <div class="flex gap-8 text-sm font-medium">
+                    <a href="#" class="hover:text-white">Terms of Service</a>
+                    <a href="#" class="hover:text-white">Privacy</a>
+                </div>
+            </div>
+            <div class="mt-20 pt-10 border-t border-white/10 flex justify-between items-center text-xs">
+                <p>© 2025 Quid Systems Inc.</p>
+                <div class="flex gap-4">
+                    <span class="opacity-60">LinkedIn</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // GSAP Scroll Animations
+        gsap.registerPlugin(ScrollTrigger);
+
+        gsap.utils.toArray('.scroll-reveal').forEach(el => {
+            gsap.from(el, {
+                y: 50,
+                opacity: 0,
+                duration: 1,
+                ease: 'power3.out',
+                scrollTrigger: {
+                    trigger: el,
+                    start: 'top 85%',
+                }
+            });
+        });
+
+        // FAQ Accordion Logic
+        function toggleAccordion(button) {
+            const item = button.parentElement;
+            const isActive = item.classList.contains('active');
+            
+            // Close all others
+            document.querySelectorAll('.accordion-item').forEach(i => {
+                i.classList.remove('active');
+            });
+
+            // Toggle current
+            if (!isActive) {
+                item.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>
