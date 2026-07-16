@@ -17,8 +17,6 @@ export interface UseRealtimeTrackingReturn {
   stopSimulation: () => void;
   setSimulationSpeed: (speed: number) => void;
   resetSimulation: () => void;
-  completeCheckpoint: (vehicleId: string, checkpointId: string) => void;
-  skipCheckpoint: (vehicleId: string, checkpointId: string) => void;
   resolveAlert: (alertId: string) => void;
 }
 
@@ -39,8 +37,6 @@ export const useRealtimeTracking = (): UseRealtimeTrackingReturn => {
     activeVehicles: 0,
     routesInProgress: 0,
     routesCompleted: 0,
-    checkpointsCompleted: 0,
-    totalCheckpoints: 0,
     delayedPickups: 0,
     averageEfficiency: 0,
     totalDistanceCovered: 0,
@@ -166,50 +162,12 @@ export const useRealtimeTracking = (): UseRealtimeTrackingReturn => {
       activeVehicles: 0,
       routesInProgress: 0,
       routesCompleted: 0,
-      checkpointsCompleted: 0,
-      totalCheckpoints: 0,
       delayedPickups: 0,
       averageEfficiency: 0,
       totalDistanceCovered: 0,
       timestamp: Date.now(),
     });
   }, [stopSimulation]);
-
-  /**
-   * Complete checkpoint manually
-   */
-  const completeCheckpoint = useCallback((vehicleId: string, checkpointId: string) => {
-    if (!engineRef.current) return;
-
-    const vehicle = engineRef.current.getVehicles().find(v => v.id === vehicleId);
-    if (!vehicle) return;
-
-    const checkpoint = vehicle.currentRoute.checkpoints.find(cp => cp.id === checkpointId);
-    if (checkpoint) {
-      checkpoint.status = 'completed';
-      checkpoint.completedAt = Date.now();
-      vehicle.checkpointsCompleted++;
-
-      setVehicles([...engineRef.current.getVehicles()]);
-    }
-  }, []);
-
-  /**
-   * Skip checkpoint manually
-   */
-  const skipCheckpoint = useCallback((vehicleId: string, checkpointId: string) => {
-    if (!engineRef.current) return;
-
-    const vehicle = engineRef.current.getVehicles().find(v => v.id === vehicleId);
-    if (!vehicle) return;
-
-    const checkpoint = vehicle.currentRoute.checkpoints.find(cp => cp.id === checkpointId);
-    if (checkpoint) {
-      checkpoint.status = 'skipped';
-
-      setVehicles([...engineRef.current.getVehicles()]);
-    }
-  }, []);
 
   /**
    * Resolve alert
@@ -242,8 +200,6 @@ export const useRealtimeTracking = (): UseRealtimeTrackingReturn => {
     stopSimulation,
     setSimulationSpeed: handleSetSimulationSpeed,
     resetSimulation,
-    completeCheckpoint,
-    skipCheckpoint,
     resolveAlert,
   };
 };

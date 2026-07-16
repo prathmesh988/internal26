@@ -33,6 +33,7 @@ import {
   Clock,
   Zap,
 } from 'lucide-react';
+import { ComplaintDetailModal } from '@/components/complaint-detail-modal';
 
 // Status badge styling function to ensure subtle, non-oversaturated colors
 function getStatusBadgeClass(status: string) {
@@ -105,6 +106,8 @@ const myMockComplaints = [
 
 export default function CitizenDashboard() {
   const router = useRouter();
+  const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const citizenData = {
     name: 'Rajesh Kumar',
@@ -215,7 +218,19 @@ export default function CitizenDashboard() {
                     </TableHeader>
                     <TableBody>
                       {allMockComplaints.map((item) => (
-                        <TableRow key={item.id}>
+                        <TableRow
+                          key={item.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => {
+                            setSelectedComplaint({
+                              ...item,
+                              createdAt: item.created,
+                              assignedToWorkerName: item.assignedTo,
+                              description: `Complaint submitted in Ward ${item.ward}. Priority: ${item.priority}. Last update: ${item.updated}.`,
+                            });
+                            setIsModalOpen(true);
+                          }}
+                        >
                           <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
                           <TableCell>{item.category}</TableCell>
                           <TableCell>{item.ward}</TableCell>
@@ -261,7 +276,20 @@ export default function CitizenDashboard() {
                     </TableHeader>
                     <TableBody>
                       {myMockComplaints.map((item) => (
-                        <TableRow key={item.id}>
+                        <TableRow
+                          key={item.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => {
+                            setSelectedComplaint({
+                              ...item,
+                              createdAt: item.createdOn,
+                              description: item.lastActivity,
+                              priority: 'MEDIUM',
+                              assignedToWorkerName: 'Assigned Crew',
+                            });
+                            setIsModalOpen(true);
+                          }}
+                        >
                           <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
                           <TableCell>{item.category}</TableCell>
                           <TableCell>
@@ -283,6 +311,15 @@ export default function CitizenDashboard() {
 
         </div>
       </div>
+
+      <ComplaintDetailModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedComplaint(null);
+        }}
+        complaint={selectedComplaint}
+      />
     </>
   );
 }

@@ -181,7 +181,7 @@ function AppSidebarInner({
               {navMain.map((item) => {
                 const isActive = pathname === item.href;
                 return (
-                  <SidebarMenuItem key={item.href}>
+                  <SidebarMenuItem key={`${item.title}-${item.href}`}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
                       <Link href={item.href}>
                         <item.icon />
@@ -203,7 +203,7 @@ function AppSidebarInner({
               {navDocuments.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
-                  <SidebarMenuItem key={item.href}>
+                  <SidebarMenuItem key={`${item.title}-${item.href}`}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
                       <Link href={item.href}>
                         <item.icon />

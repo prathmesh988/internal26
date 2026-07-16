@@ -1,15 +1,112 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, Popup, Marker, Tooltip } from 'react-leaflet';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Polyline, Popup, Marker, Tooltip, useMap, CircleMarker } from 'react-leaflet';
 import { LatLngExpression, Icon } from 'leaflet';
-import { Vehicle, Checkpoint } from '@/types/tracking';
+import { Vehicle } from '@/types/tracking';
 import { INDORE_BOUNDS } from '@/services/tracking/mock-routes';
 import { GARBAGE_TRUCK_COLORS } from '@/services/tracking/vehicle-generator';
 import L from 'leaflet';
+import 'leaflet.heat';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import 'leaflet-defaulticon-compatibility';
+import { ComplaintDetailModal } from '@/components/complaint-detail-modal';
+
+// Hardcoded complaint points for density visualization
+const hardcodedComplaints = [
+  // Ward 01 - Shivaji Nagar
+  { lat: 22.7220, lng: 75.8600, weight: 3 },
+  { lat: 22.7235, lng: 75.8615, weight: 4 },
+  // Ward 02 - Aundh
+  { lat: 22.7100, lng: 75.8450, weight: 2 },
+  // Ward 03 - Kothrud
+  { lat: 22.7050, lng: 75.8650, weight: 5 },
+  { lat: 22.7070, lng: 75.8670, weight: 4 },
+  // Ward 07 - Clustered High Density Zone
+  { lat: 22.7300, lng: 75.8750, weight: 10 },
+  { lat: 22.7320, lng: 75.8770, weight: 9 },
+  { lat: 22.7285, lng: 75.8735, weight: 8 }
+];
+
+const hardcodedClusters = [
+  {
+    wardName: 'Shivaji Nagar (Ward 01)',
+    lat: 22.7228,
+    lng: 75.8608,
+    complaints: [
+      { id: 'CMP-101', title: 'Overflowing commercial garbage pile', description: 'Overspill has blocked the main pavement for 2 days. Tipper skipped Lane 3.', category: 'OVERFLOW', ward: 'Ward 01 - Shivaji Nagar', wardCode: 'W01', status: 'OPEN', priority: 'HIGH', createdAt: '2026-07-16T14:30:00Z', assignedToWorkerName: 'Amit Verma' },
+      { id: 'CMP-102', title: 'Missed tipper morning pickup', description: 'Collection vehicle skipped Lane 4 morning route. High odor starting to accumulate.', category: 'MISSED_PICKUP', ward: 'Ward 01 - Shivaji Nagar', wardCode: 'W01', status: 'ASSIGNED', priority: 'MEDIUM', createdAt: '2026-07-16T18:45:00Z', assignedToWorkerName: 'Riya Singh' }
+    ]
+  },
+  {
+    wardName: 'Aundh (Ward 02)',
+    lat: 22.7100,
+    lng: 75.8450,
+    complaints: [
+      { id: 'CMP-201', title: 'Plastic packaging spill', description: 'Scattered commercial wrappers and box waste near gate 3.', category: 'SPILL', ward: 'Ward 02 - Aundh', wardCode: 'W02', status: 'IN_PROGRESS', priority: 'LOW', createdAt: '2026-07-16T10:15:00Z', assignedToWorkerName: 'Neha Sharma' }
+    ]
+  },
+  {
+    wardName: 'Kothrud (Ward 03)',
+    lat: 22.7060,
+    lng: 75.8660,
+    complaints: [
+      { id: 'CMP-301', title: 'Hazardous paint dumping', description: 'Several cans of chemical paints dumped illegally next to standard bin slots.', category: 'ILLEGAL_DUMPING', ward: 'Ward 03 - Kothrud', wardCode: 'W03', status: 'ESCALATED', priority: 'CRITICAL', createdAt: '2026-07-16T08:00:00Z', assignedToWorkerName: 'Suresh Yadav' }
+    ]
+  },
+  {
+    wardName: 'Hot Zone (Ward 07)',
+    lat: 22.7302,
+    lng: 75.8752,
+    complaints: [
+      { id: 'CMP-701', title: 'Multiple market bins overflow', description: 'Sanitation compactor skipped market bins. Over 500kg waste piles up.', category: 'OVERFLOW', ward: 'Ward 07', wardCode: 'W07', status: 'OPEN', priority: 'HIGH', createdAt: '2026-07-16T16:20:00Z', assignedToWorkerName: 'Karan Shah' },
+      { id: 'CMP-702', title: 'Illegal industrial dumping', description: 'Unidentified vehicle spotted dumping packaging boxes directly in market lanes.', category: 'ILLEGAL_DUMPING', ward: 'Ward 07', wardCode: 'W07', status: 'ASSIGNED', priority: 'HIGH', createdAt: '2026-07-16T17:10:00Z', assignedToWorkerName: 'Deepak Rao' },
+      { id: 'CMP-703', title: 'Non-segregated waste dump', description: 'E-waste lithium-ion batteries and chargers mixed in with green wet scraps.', category: 'SEGREGATION', ward: 'Ward 07', wardCode: 'W07', status: 'OPEN', priority: 'CRITICAL', createdAt: '2026-07-16T19:00:00Z', assignedToWorkerName: 'Sneha Kulkarni' }
+    ]
+  }
+];
+
+interface HeatmapLayerProps {
+  points: { lat: number; lng: number; weight: number }[];
+  visible: boolean;
+}
+
+const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ points, visible }) => {
+  const map = useMap();
+  const heatLayerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+      heatLayerRef.current = null;
+    }
+
+    if (!visible) return;
+
+    const heatData = points.map(p => [p.lat, p.lng, p.weight] as [number, number, number]);
+
+    heatLayerRef.current = (L as any).heatLayer(heatData, {
+      radius: 25,
+      blur: 15,
+      maxZoom: 15,
+      gradient: {
+        0.4: '#10b981',  // Green (low density)
+        0.65: '#f59e0b', // Yellow (medium density)
+        1.0: '#ef4444',  // Red (high density)
+      }
+    }).addTo(map);
+
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+    };
+  }, [map, points, visible]);
+
+  return null;
+};
 
 interface TrackingMapProps {
   vehicles: Vehicle[];
@@ -18,59 +115,47 @@ interface TrackingMapProps {
   isDark?: boolean;
 }
 
-// Custom vehicle marker SVG icon
-const createVehicleIcon = (status: string, isDark: boolean = false) => {
+// Custom vehicle marker SVG icon — enlarged significantly for maximum visibility
+const createVehicleIcon = (status: string, isDark: boolean = false, isSelected: boolean = false) => {
   const colors: Record<string, string> = {
-    collecting: '#10b981',
-    idle: '#6b7280',
-    delayed: '#f59e0b',
+    collecting:  '#10b981',
+    idle:        '#6b7280',
+    delayed:     '#f97316',
     maintenance: '#ef4444',
-    completed: '#3b82f6',
+    completed:   '#3b82f6',
   };
 
   const color = colors[status] || '#6b7280';
-  const strokeColor = isDark ? '#f3f4f6' : '#1f2937';
+  const strokeColor = '#1e2937'; // Bold dark border for high contrast
+  
+  // Cleaner, balanced size for the trucks
+  const size = isSelected ? 46 : 36;
 
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-      <!-- Truck body -->
-      <rect x="4" y="10" width="20" height="10" rx="2" fill="${color}" stroke="${strokeColor}" stroke-width="1.5"/>
-      <!-- Truck cabin -->
-      <rect x="24" y="12" width="6" height="6" rx="1" fill="${color}" stroke="${strokeColor}" stroke-width="1.5"/>
-      <!-- Wheel 1 -->
-      <circle cx="10" cy="21" r="2.5" fill="${strokeColor}"/>
-      <!-- Wheel 2 -->
-      <circle cx="22" cy="21" r="2.5" fill="${strokeColor}"/>
-      <!-- Status pulse -->
-      <circle cx="16" cy="15" r="8" fill="none" stroke="${color}" stroke-width="1" opacity="0.3"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 36 36">
+      <!-- Shadow -->
+      <ellipse cx="18" cy="33" rx="14" ry="4" fill="rgba(0,0,0,0.25)"/>
+      <!-- Truck body (compactor) -->
+      <rect x="2" y="8" width="24" height="17" rx="3" fill="${color}" stroke="${strokeColor}" stroke-width="2"/>
+      <!-- Cabin -->
+      <rect x="26" y="11" width="9" height="12" rx="2" fill="${color}" stroke="${strokeColor}" stroke-width="2"/>
+      <!-- Windshield -->
+      <rect x="28" y="13.5" width="5" height="5" rx="1" fill="#fff" opacity="0.8"/>
+      <!-- Wheels -->
+      <circle cx="9" cy="26.5" r="5" fill="${strokeColor}"/>
+      <circle cx="9" cy="26.5" r="2.2" fill="#fff"/>
+      <circle cx="22" cy="26.5" r="5" fill="${strokeColor}"/>
+      <circle cx="22" cy="26.5" r="2.2" fill="#fff"/>
+      ${isSelected ? `<circle cx="18" cy="18" r="17" fill="none" stroke="${color}" stroke-width="3" opacity="0.8" stroke-dasharray="5, 3"/>` : ''}
     </svg>
   `.trim();
 
   return new Icon({
     iconUrl: `data:image/svg+xml;base64,${btoa(svg)}`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
+    iconSize:     [size, size],
+    iconAnchor:   [size / 2, size],
+    popupAnchor:  [0, -size],
   });
-};
-
-// Checkpoint marker icon
-const checkpointIcons = {
-  pending: new Icon({
-    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4IiBmaWxsPSIjZWFiMzA4IiBzdHJva2U9IiNkOTc3MDYiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-  }),
-  completed: new Icon({
-    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4IiBmaWxsPSIjMTBiOTgxIiBzdHJva2U9IiMwNjc2NjciIHN0cm9rZS13aWR0aD0iMiIvPgogIDxwYXRoIGQ9Ik05IDE0bDIgMiA0LTQiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIi8+Cjwvc3ZnPg==',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-  }),
-  skipped: new Icon({
-    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAKICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4IiBmaWxsPSIjZWY0NDQ0IiBzdHJva2U9IiNkYzI2MjYiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxwYXRoIGQ9Ik05IDExaDBtNiAwaDAiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+Cjwvc3ZnPg==',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-  }),
 };
 
 export const TrackingMap: React.FC<TrackingMapProps> = ({
@@ -79,27 +164,78 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   onVehicleClick,
   isDark = false,
 }) => {
-  const center: LatLngExpression = [22.7196, 75.8577]; // Indore center
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hoveredCluster, setHoveredCluster] = useState<any>(null);
+  const closeTimeoutRef = useRef<any>(null);
+  const center: LatLngExpression = [22.7196, 75.8577];
   const zoom = 13;
 
-  // Route polylines
+  const MapEvents = () => {
+    const map = useMap();
+    useEffect(() => {
+      const handleClose = () => {
+        setHoveredCluster(null);
+        if (closeTimeoutRef.current) {
+          clearTimeout(closeTimeoutRef.current);
+          closeTimeoutRef.current = null;
+        }
+      };
+
+      const handleMove = () => {
+        if (hoveredCluster) {
+          const point = map.latLngToContainerPoint([hoveredCluster.lat, hoveredCluster.lng]);
+          setHoveredCluster((prev: any) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              x: point.x,
+              y: point.y - 10,
+            };
+          });
+        }
+      };
+
+      map.on('zoomstart dragstart', handleClose);
+      map.on('zoomend moveend', handleMove);
+      return () => {
+        map.off('zoomstart dragstart', handleClose);
+        map.off('zoomend moveend', handleMove);
+      };
+    }, [map]);
+    return null;
+  };
+
+  // Deduplicate planned route polylines by route ID
   const routePolylines = useMemo(() => {
-    const routes = new Map();
+    const seen = new Set<string>();
+    const result: { routeId: string; coords: LatLngExpression[] }[] = [];
 
     for (const vehicle of vehicles) {
       const routeId = vehicle.currentRoute.id;
-      if (!routes.has(routeId)) {
-        const coordinates: LatLngExpression[] = vehicle.currentRoute.coordinates.map(
-          coord => [coord.latitude, coord.longitude] as LatLngExpression
+      if (!seen.has(routeId)) {
+        seen.add(routeId);
+        const coords: LatLngExpression[] = vehicle.currentRoute.coordinates.map(
+          c => [c.latitude, c.longitude] as LatLngExpression
         );
-        routes.set(routeId, coordinates);
+        result.push({ routeId, coords });
       }
     }
 
-    return routes;
+    return result;
   }, [vehicles]);
 
-  // Tile layer style based on theme
+  // Orange deviation paths — only for deviated vehicles that have breadcrumbs
+  const deviationPolylines = useMemo(() => {
+    return vehicles
+      .filter(v => v.isDeviated && v.deviationPath && v.deviationPath.length > 1)
+      .map(v => ({
+        vehicleId: v.id,
+        coords: v.deviationPath.map(c => [c.latitude, c.longitude] as LatLngExpression),
+      }));
+  }, [vehicles]);
+
   const tileUrl = isDark
     ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
     : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -109,112 +245,230 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
     : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
   return (
-    <MapContainer
-      center={center}
-      zoom={zoom}
-      style={{ height: '100%', width: '100%' }}
-      className="rounded-lg"
-    >
-      <TileLayer url={tileUrl} attribution={tileAttribution} />
-
-      {/* Route polylines */}
-      {Array.from(routePolylines.entries()).map(([routeId, coordinates]) => (
-        <Polyline
-          key={routeId}
-          positions={coordinates}
-          color={isDark ? '#3b82f6' : '#2563eb'}
-          weight={3}
-          opacity={0.6}
-          dashArray="5, 5"
+    <div className="relative w-full h-full">
+      {/* Floating Toggle Controls */}
+      <div className="absolute top-4 right-4 z-[1000] bg-background/95 backdrop-blur border rounded-xl p-2.5 px-3 shadow-md flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="toggle-heatmap"
+          checked={showHeatmap}
+          onChange={(e) => setShowHeatmap(e.target.checked)}
+          className="size-4 cursor-pointer accent-primary"
         />
-      ))}
+        <label htmlFor="toggle-heatmap" className="text-xs font-bold cursor-pointer select-none text-foreground">
+          Show Complaint Heatmap
+        </label>
+      </div>
 
-      {/* Checkpoints */}
-      {vehicles.map(vehicle =>
-        vehicle.currentRoute.checkpoints.map(checkpoint => (
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        style={{ height: '100%', width: '100%' }}
+        className="rounded-lg"
+      >
+        <TileLayer url={tileUrl} attribution={tileAttribution} />
+
+        {/* ── Complaint Density Heatmap ── */}
+        <HeatmapLayer points={hardcodedComplaints} visible={showHeatmap} />
+
+        <MapEvents />
+
+        {/* ── Invisible Interactive Cluster Markers for Heatmap ── */}
+        {showHeatmap && hardcodedClusters.map((cluster, idx) => (
+          <CircleMarker
+            key={`cluster-marker-${idx}`}
+            center={[cluster.lat, cluster.lng]}
+            radius={20}
+            pathOptions={{
+              fillColor: 'transparent',
+              color: 'transparent',
+              fillOpacity: 0,
+              stroke: false
+            }}
+            eventHandlers={{
+              mouseover: (e) => {
+                const map = e.target._map;
+                const point = map.latLngToContainerPoint(e.target.getLatLng());
+                setHoveredCluster({
+                  ...cluster,
+                  x: point.x,
+                  y: point.y - 10,
+                });
+                if (closeTimeoutRef.current) {
+                  clearTimeout(closeTimeoutRef.current);
+                  closeTimeoutRef.current = null;
+                }
+              },
+              mouseout: () => {
+                closeTimeoutRef.current = setTimeout(() => {
+                  setHoveredCluster(null);
+                }, 300);
+              }
+            }}
+          />
+        ))}
+
+        {/* ── Planned route polylines (Extra Bold, Deep Midnight Navy Blue) ── */}
+        {routePolylines.map(({ routeId, coords }) => (
+          <Polyline
+            key={routeId}
+            positions={coords}
+            color="#1e3a8a"
+            weight={8}
+            opacity={0.9}
+          />
+        ))}
+
+        {/* ── Deviation paths (Extra Bold Orange) ── */}
+        {deviationPolylines.map(({ vehicleId, coords }) => (
+          <Polyline
+            key={`dev-${vehicleId}`}
+            positions={coords}
+            color="#ea580c"
+            weight={10}
+            opacity={0.95}
+          />
+        ))}
+
+        {/* ── Vehicle markers ── */}
+        {vehicles.map(vehicle => (
           <Marker
-            key={checkpoint.id}
-            position={[checkpoint.coordinates.latitude, checkpoint.coordinates.longitude]}
-            icon={checkpointIcons[checkpoint.status as keyof typeof checkpointIcons] || checkpointIcons.pending}
-            interactive={false}
+            key={vehicle.id}
+            position={[vehicle.currentPosition.latitude, vehicle.currentPosition.longitude]}
+            icon={createVehicleIcon(vehicle.status, isDark, selectedVehicleId === vehicle.id)}
+            eventHandlers={{ click: () => onVehicleClick?.(vehicle.id) }}
+            riseOnHover
+            zIndexOffset={selectedVehicleId === vehicle.id ? 1000 : 0}
           >
-            <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>
-              <div className="text-xs">
-                <div className="font-semibold">{checkpoint.name}</div>
-                <div className="text-gray-600">Status: {checkpoint.status}</div>
-              </div>
-            </Tooltip>
-          </Marker>
-        ))
-      )}
-
-      {/* Vehicles */}
-      {vehicles.map(vehicle => (
-        <Marker
-          key={vehicle.id}
-          position={[vehicle.currentPosition.latitude, vehicle.currentPosition.longitude]}
-          icon={createVehicleIcon(vehicle.status, isDark)}
-          eventHandlers={{
-            click: () => onVehicleClick?.(vehicle.id),
-          }}
-          riseOnHover
-          zIndexOffset={selectedVehicleId === vehicle.id ? 1000 : 0}
-        >
-          <Popup className="vehicle-popup">
-            <div className="min-w-[280px] p-2">
-              <div className="font-semibold text-lg">{vehicle.registrationNumber}</div>
-              <div className="text-xs text-gray-600 mb-2">{vehicle.driverName}</div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+            <Popup className="vehicle-popup">
+              <div className="min-w-[260px] p-2 space-y-2">
                 <div>
-                  <div className="text-gray-600">Ward</div>
-                  <div className="font-semibold">{vehicle.currentRoute.wardName}</div>
+                  <div className="font-semibold text-base">{vehicle.registrationNumber}</div>
+                  <div className="text-xs text-gray-500">{vehicle.driverName}</div>
                 </div>
-                <div>
-                  <div className="text-gray-600">Status</div>
-                  <div
-                    className="font-semibold capitalize"
-                    style={{ color: GARBAGE_TRUCK_COLORS[vehicle.status] }}
-                  >
-                    {vehicle.status}
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div className="text-gray-500">Ward</div>
+                    <div className="font-semibold">{vehicle.currentRoute.wardName}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Status</div>
+                    <div
+                      className="font-semibold capitalize"
+                      style={{ color: GARBAGE_TRUCK_COLORS[vehicle.status] }}
+                    >
+                      {vehicle.isDeviated ? '⚠ Deviated' : vehicle.status}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Speed</div>
+                    <div className="font-semibold">{vehicle.speed} km/h</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Efficiency</div>
+                    <div className="font-semibold">{vehicle.efficiency}%</div>
+                  </div>
+                </div>
+
+                {/* Route progress bar */}
+                <div className="text-xs">
+                  <div className="text-gray-500 mb-1">Route Progress</div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div
+                      className="h-1.5 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(100, (vehicle.distanceCovered / vehicle.currentRoute.totalDistance) * 100)}%`,
+                        backgroundColor: vehicle.isDeviated ? '#f97316' : GARBAGE_TRUCK_COLORS[vehicle.status],
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-0.5">
+                    <span>{vehicle.distanceCovered.toFixed(1)} km</span>
+                    <span className="text-gray-400">{vehicle.currentRoute.totalDistance.toFixed(1)} km</span>
                   </div>
                 </div>
               </div>
+            </Popup>
 
-              <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                <div>
-                  <div className="text-gray-600">Speed</div>
-                  <div className="font-semibold">{vehicle.speed} km/h</div>
-                </div>
-                <div>
-                  <div className="text-gray-600">Efficiency</div>
-                  <div className="font-semibold">{vehicle.efficiency}%</div>
-                </div>
+            {/* Tooltip on hover for quick info */}
+            <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+              <div className="text-xs font-semibold">
+                {vehicle.registrationNumber}
+                {vehicle.isDeviated && <span className="ml-1 text-orange-500">⚠ Off-route</span>}
               </div>
+              <div className="text-xs text-gray-500">{vehicle.currentRoute.wardName}</div>
+            </Tooltip>
+          </Marker>
+        ))}
+      </MapContainer>
 
-              <div className="text-xs mb-2">
-                <div className="text-gray-600">Checkpoints</div>
-                <div className="font-semibold">
-                  {vehicle.checkpointsCompleted} / {vehicle.totalCheckpoints}
-                </div>
-              </div>
+      {/* Floating Interactive Hover Tooltip */}
+      {hoveredCluster && (
+        <div
+          className="absolute z-[1100] bg-background/95 backdrop-blur-md border rounded-xl p-3 shadow-xl text-xs w-64 space-y-2 pointer-events-auto text-foreground transition-all duration-150"
+          style={{
+            left: `${hoveredCluster.x}px`,
+            top: `${hoveredCluster.y}px`,
+            transform: 'translate(-50%, -100%)',
+          }}
+          onMouseEnter={() => {
+            if (closeTimeoutRef.current) {
+              clearTimeout(closeTimeoutRef.current);
+              closeTimeoutRef.current = null;
+            }
+          }}
+          onMouseLeave={() => {
+            closeTimeoutRef.current = setTimeout(() => {
+              setHoveredCluster(null);
+            }, 100);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <div className="font-bold border-b pb-1 text-[10px] text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+            <span>{hoveredCluster.wardName}</span>
+            <span className="bg-destructive/10 text-destructive rounded-full px-1.5 py-0.2 font-mono">
+              {hoveredCluster.complaints.length}
+            </span>
+          </div>
+          <div className="space-y-1">
+            {hoveredCluster.complaints.map((c: any) => (
+              <button
+                key={c.id}
+                onClick={() => {
+                  setSelectedComplaint(c);
+                  setIsModalOpen(true);
+                  setHoveredCluster(null);
+                }}
+                className="w-full text-left p-1.5 px-2 rounded-lg bg-muted/40 hover:bg-primary/10 hover:text-primary transition-all duration-150 flex items-center justify-between font-semibold"
+              >
+                <span className="truncate max-w-[140px]">{c.title}</span>
+                <span className="font-mono text-[9px] text-muted-foreground bg-muted p-0.5 rounded px-1 flex-shrink-0">
+                  {c.id}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-              <div className="text-xs">
-                <div className="text-gray-600">Progress</div>
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${(vehicle.distanceCovered / vehicle.currentRoute.totalDistance) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+      <ComplaintDetailModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedComplaint(null);
+        }}
+        complaint={selectedComplaint}
+      />
+    </div>
   );
 };
 

@@ -46,7 +46,7 @@ const MetricCard: React.FC<{
 
 export const MetricsPanel: React.FC<MetricsPanelProps> = ({ metrics }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       <MetricCard
         title="Active Vehicles"
         value={metrics.activeVehicles}
@@ -56,13 +56,13 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({ metrics }) => {
       <MetricCard
         title="Routes Completed"
         value={metrics.routesCompleted}
-        icon={<CheckCircle className="w-4 h-4" />}
+        icon={<CheckCircle className="w-4 h-4 text-emerald-500" />}
       />
 
       <MetricCard
-        title="Delayed Pickups"
+        title="Delayed / Deviated"
         value={metrics.delayedPickups}
-        icon={<Clock className="w-4 h-4 text-amber-500" />}
+        icon={<Clock className="w-4 h-4 text-orange-500" />}
       />
 
       <MetricCard
@@ -73,15 +73,9 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({ metrics }) => {
       />
 
       <MetricCard
-        title="Checkpoints Completed"
-        value={`${metrics.checkpointsCompleted}/${metrics.totalCheckpoints}`}
-        icon={<CheckCircle className="w-4 h-4 text-green-600" />}
-      />
-
-      <MetricCard
         title="Total Distance"
         value={metrics.totalDistanceCovered.toFixed(1)}
-        icon={<Truck className="w-4 h-4" />}
+        icon={<Truck className="w-4 h-4 text-sky-500" />}
         unit="km"
       />
     </div>

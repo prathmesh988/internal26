@@ -21,7 +21,6 @@ export class AlertEngine {
     const formatters: Record<AnomalyType, (alert: Alert) => AlertFormatter> = {
       deviation: this.formatDeviation.bind(this),
       delay: this.formatDelay.bind(this),
-      missed_checkpoint: this.formatMissedCheckpoint.bind(this),
       maintenance_alert: this.formatMaintenanceAlert.bind(this),
       efficiency_drop: this.formatEfficiencyDrop.bind(this),
     };
@@ -45,15 +44,6 @@ export class AlertEngine {
       description: `${minutes}m delay in ${alert.details.ward || 'route'}`,
       icon: 'Clock',
       color: 'warning',
-    };
-  }
-
-  private formatMissedCheckpoint(alert: Alert): AlertFormatter {
-    return {
-      title: '❌ Checkpoint Missed',
-      description: `"${alert.details.checkpoint}" near ${alert.details.ward}`,
-      icon: 'AlertTriangle',
-      color: 'destructive',
     };
   }
 
@@ -133,7 +123,6 @@ export class AlertEngine {
       byType: {
         deviation: alerts.filter(a => a.type === 'deviation').length,
         delay: alerts.filter(a => a.type === 'delay').length,
-        missedCheckpoint: alerts.filter(a => a.type === 'missed_checkpoint').length,
         maintenance: alerts.filter(a => a.type === 'maintenance_alert').length,
         efficiency: alerts.filter(a => a.type === 'efficiency_drop').length,
       },
@@ -183,10 +172,9 @@ export class AlertEngine {
  * Generate realistic alert messages
  */
 export const generateAlertMessage = (type: AnomalyType, details: Record<string, any>): string => {
-  const messages: Record<AnomalyType, (details: Record<string, any>) => string> = {
+  const messages: Record<AnomalyType, (d: any) => string> = {
     deviation: (d) => `Vehicle deviated ${d.deviation || '50m'} from assigned route in ${d.ward}`,
     delay: (d) => `Pickup delayed by ${d.delayMinutes || 15} minutes in ${d.ward}`,
-    missed_checkpoint: (d) => `Checkpoint "${d.checkpoint}" was skipped in ${d.ward}`,
     maintenance_alert: (d) => `Vehicle requires maintenance: ${d.issue || 'general maintenance'}`,
     efficiency_drop: (d) => `Vehicle efficiency dropped to ${d.efficiency || 45}%`,
   };

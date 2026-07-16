@@ -44,9 +44,12 @@ const priorities = [
   { label: 'Critical (within 4 hours)', value: 'CRITICAL' }
 ];
 
+import { useUserStore } from '@/store';
+
 export default function FileComplaintPage() {
   const router = useRouter();
   const { data: wardsData } = useWards();
+  const { userId } = useUserStore();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -59,12 +62,21 @@ export default function FileComplaintPage() {
 
   const [submitted, setSubmitted] = useState(false);
   const { execute: submitComplaint, loading, error } = useAsyncAction(
-    (data: any) => complaintService.create({
-      ...data,
-      filedByCitizenId: 'citizen-001',
-      status: 'OPEN',
-      escalationCount: 0,
-    }),
+    (data: any) => {
+      const selectedWard = (wardsData || []).find((w: any) => w.code === data.wardCode);
+      const citizenId = userId || 'citizen-001';
+      const now = new Date().toISOString();
+      return complaintService.create({
+        ...data,
+        ward: selectedWard ? selectedWard.name : `Ward ${data.wardCode}`,
+        citizenId,
+        filedByCitizenId: citizenId,
+        status: 'OPEN',
+        escalationCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+    },
     {
       onSuccess: () => {
         setSubmitted(true);
@@ -182,9 +194,17 @@ export default function FileComplaintPage() {
                       <SelectValue placeholder="Select your ward" />
                     </SelectTrigger>
                     <SelectContent>
-                      {['W01', 'W02', 'W03', 'W04', 'W05', 'W06'].map(w => (
-                        <SelectItem key={w} value={w}>{w}</SelectItem>
-                      ))}
+                      {wardsData && wardsData.length > 0 ? (
+                        wardsData.map(w => (
+                          <SelectItem key={w.code} value={w.code}>
+                            {w.code} - {w.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        ['W01', 'W02', 'W03', 'W04', 'W05', 'W06'].map(w => (
+                          <SelectItem key={w} value={w}>{w}</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

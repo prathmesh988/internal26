@@ -42,6 +42,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { formatPercentage } from '@/lib/utils-helpers';
+import { ComplaintDetailModal } from '@/components/complaint-detail-modal';
 
 // ── Status badge styling ─────────────────────────────────────────────────────
 
@@ -111,12 +112,62 @@ function formatCategory(cat: string) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+import { toast } from 'sonner';
+
 export default function AdminDashboard() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [vehicles,   setVehicles]   = useState<Vehicle[]>([]);
   const [wards,      setWards]      = useState<Ward[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [range, setRange] = useState<'3m' | '30d' | '7d'>('30d');
+  const [isExporting, setIsExporting] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleExportReport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    toast.loading('Generating and compiling monthly city sanitation report PDF using Gemini...');
+
+    try {
+      const res = await fetch('/api/reports/monthly', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': 'admin-001',
+          'x-user-type': 'ADMIN',
+        },
+      });
+
+      if (!res.ok) {
+        let errMsg = 'Failed to generate report';
+        try {
+          const errData = await res.json();
+          errMsg = errData.error || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      // Download report as PDF binary file
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `indore-monthly-sanitation-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.dismiss();
+      toast.success('PDF report downloaded successfully!');
+    } catch (err: any) {
+      toast.dismiss();
+      toast.error(err.message || 'Error exporting report');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -175,7 +226,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <>
-        <SiteHeader title="Dashboard" actionLabel="Export Report" />
+        <SiteHeader title="Dashboard" actionLabel="Export Report" onAction={handleExportReport} />
         <div className="flex flex-1 items-center justify-center py-20">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
         </div>
@@ -185,7 +236,7 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <SiteHeader title="Dashboard" actionLabel="Export Report" />
+      <SiteHeader title="Dashboard" actionLabel="Export Report" onAction={handleExportReport} />
 
       <div className="flex flex-1 flex-col">
         <div className="flex flex-col gap-6 py-6 px-4 lg:px-6">
@@ -343,7 +394,14 @@ export default function AdminDashboard() {
                         </TableHeader>
                         <TableBody>
                           {recentComplaints.map((item) => (
-                            <TableRow key={item.id}>
+                            <TableRow
+                              key={item.id}
+                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              onClick={() => {
+                                setSelectedComplaint(item);
+                                setIsModalOpen(true);
+                              }}
+                            >
                               <TableCell className="font-mono text-xs font-semibold text-muted-foreground">{item.id.slice(0, 8)}…</TableCell>
                               <TableCell className="font-medium text-foreground max-w-[160px] truncate">{item.title}</TableCell>
                               <TableCell className="text-sm">{formatCategory(item.category)}</TableCell>
@@ -494,6 +552,15 @@ export default function AdminDashboard() {
 
         </div>
       </div>
+
+      <ComplaintDetailModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedComplaint(null);
+        }}
+        complaint={selectedComplaint}
+      />
     </>
   );
 }

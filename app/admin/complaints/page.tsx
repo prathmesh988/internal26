@@ -41,6 +41,7 @@ import { StatusBadge, PriorityBadge } from '@/components/shared';
 import { useComplaints, useCitizens, useAsyncAction } from '@/hooks';
 import { complaintService } from '@/services/appwrite/client';
 import { formatDate } from '@/lib/utils-helpers';
+import { ComplaintDetailModal } from '@/components/complaint-detail-modal';
 import {
   AlertCircle,
   CheckCircle,
@@ -82,6 +83,7 @@ function getPriorityBadgeClass(priority: string) {
 
 export default function ComplaintsPage() {
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('filtered-complaints');
 
   // Filters State
@@ -344,7 +346,14 @@ export default function ComplaintsPage() {
                         </TableHeader>
                         <TableBody>
                           {complaintsList.map((item) => (
-                            <TableRow key={item.id}>
+                            <TableRow
+                              key={item.id}
+                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              onClick={() => {
+                                setSelectedComplaint(item);
+                                setIsModalOpen(true);
+                              }}
+                            >
                               <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
                               <TableCell>{item.category}</TableCell>
                               <TableCell className="font-medium">{item.citizen}</TableCell>
@@ -362,51 +371,17 @@ export default function ComplaintsPage() {
                               </TableCell>
                               <TableCell className="text-muted-foreground text-xs">{item.created}</TableCell>
                               <TableCell>
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button size="sm" variant="outline" onClick={() => setSelectedComplaint(item)}>
-                                      <Eye className="size-3.5" />
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-md">
-                                    <DialogHeader>
-                                      <DialogTitle>Inspect Complaint</DialogTitle>
-                                      <DialogDescription>Review detailed feedback and coordinate officers</DialogDescription>
-                                    </DialogHeader>
-                                    {selectedComplaint && (
-                                      <div className="space-y-4 pt-2">
-                                        <div className="space-y-1">
-                                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Citizen / Category</p>
-                                          <p className="text-sm font-semibold">{selectedComplaint.citizen} · {selectedComplaint.category}</p>
-                                        </div>
-                                        <div className="space-y-1">
-                                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Detailed Description</p>
-                                          <p className="text-sm text-muted-foreground leading-normal">{selectedComplaint.desc}</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                          <div className="space-y-1">
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assigned Officer</p>
-                                            <p className="text-sm">{selectedComplaint.officer}</p>
-                                          </div>
-                                          <div className="space-y-1">
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
-                                            <StatusBadge status={selectedComplaint.status} />
-                                          </div>
-                                        </div>
-                                        {selectedComplaint.status !== 'RESOLVED' && (
-                                          <div className="flex gap-2 pt-2 border-t">
-                                            <Button size="sm" onClick={() => handleUpdateStatus(selectedComplaint.id, 'RESOLVED')}>
-                                              Mark Resolved
-                                            </Button>
-                                            <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(selectedComplaint.id, 'IN_PROGRESS')}>
-                                              Start Operations
-                                            </Button>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </DialogContent>
-                                </Dialog>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedComplaint(item);
+                                    setIsModalOpen(true);
+                                  }}
+                                >
+                                  <Eye className="size-3.5" />
+                                </Button>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -460,7 +435,14 @@ export default function ComplaintsPage() {
                         </TableHeader>
                         <TableBody>
                           {complaintsList.map((item) => (
-                            <TableRow key={item.id}>
+                            <TableRow
+                              key={item.id}
+                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              onClick={() => {
+                                setSelectedComplaint(item);
+                                setIsModalOpen(true);
+                              }}
+                            >
                               <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
                               <TableCell>{item.category}</TableCell>
                               <TableCell className="font-medium">{item.citizen}</TableCell>
@@ -510,6 +492,15 @@ export default function ComplaintsPage() {
 
         </div>
       </div>
+
+      <ComplaintDetailModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedComplaint(null);
+        }}
+        complaint={selectedComplaint}
+      />
     </>
   );
 }

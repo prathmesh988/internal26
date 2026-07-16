@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/table';
 import { StatusBadge, PriorityBadge } from '@/components/shared';
 import { useComplaints } from '@/hooks';
+import { ComplaintDetailModal } from '@/components/complaint-detail-modal';
 import {
   FileText,
   CheckCircle,
@@ -75,6 +76,7 @@ export default function MyComplaintsPage() {
   }, [allCitizenComplaints]);
 
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Filters State
@@ -243,57 +245,37 @@ export default function MyComplaintsPage() {
                         const isOverdue = ageInHours > sla;
 
                         return (
-                          <Dialog key={complaint.id}>
-                            <DialogTrigger asChild>
-                              <div className="py-4 hover:bg-muted/30 -mx-6 px-6 cursor-pointer transition-colors" onClick={() => setSelectedComplaint(complaint)}>
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <p className="font-medium text-sm truncate">{complaint.title}</p>
-                                      {isOverdue && complaint.status !== 'RESOLVED' && (
-                                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-destructive/10 text-destructive border border-destructive/20">
-                                          Overdue
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground line-clamp-1">{complaint.desc}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    <PriorityBadge priority={complaint.priority as any} />
-                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusStyles[complaint.status] || ''}`}>
-                                      {complaint.status.replace(/_/g, ' ')}
+                          <div
+                            key={complaint.id}
+                            className="py-4 hover:bg-muted/30 -mx-6 px-6 cursor-pointer transition-colors border-b last:border-b-0"
+                            onClick={() => {
+                              setSelectedComplaint(complaint);
+                              setIsModalOpen(true);
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="font-medium text-sm truncate">{complaint.title}</p>
+                                  {isOverdue && complaint.status !== 'RESOLVED' && (
+                                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-destructive/10 text-destructive border border-destructive/20">
+                                      Overdue
                                     </span>
-                                  </div>
+                                  )}
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  Filed {formatDate(complaint.createdAt)} · Ward {complaint.wardCode}
-                                </p>
+                                <p className="text-xs text-muted-foreground line-clamp-1">{complaint.desc}</p>
                               </div>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-md">
-                              <DialogHeader>
-                                <DialogTitle>{selectedComplaint?.title}</DialogTitle>
-                              </DialogHeader>
-                              {selectedComplaint && (
-                                <div className="space-y-4 pt-1">
-                                  <div className="space-y-1">
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Detailed description</p>
-                                    <p className="text-sm text-foreground/80">{selectedComplaint.desc}</p>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
-                                      <StatusBadge status={selectedComplaint.status} />
-                                    </div>
-                                    <div className="space-y-1">
-                                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Priority</p>
-                                      <PriorityBadge priority={selectedComplaint.priority} />
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </DialogContent>
-                          </Dialog>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <PriorityBadge priority={complaint.priority as any} />
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusStyles[complaint.status] || ''}`}>
+                                  {complaint.status.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Filed {formatDate(complaint.createdAt)} · Ward {complaint.wardCode}
+                            </p>
+                          </div>
                         );
                       })}
                     </div>
@@ -337,7 +319,14 @@ export default function MyComplaintsPage() {
                         </TableHeader>
                         <TableBody>
                           {masterList.map((item) => (
-                            <TableRow key={item.id}>
+                            <TableRow
+                              key={item.id}
+                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              onClick={() => {
+                                setSelectedComplaint(item);
+                                setIsModalOpen(true);
+                              }}
+                            >
                               <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
                               <TableCell className="font-medium">{item.title}</TableCell>
                               <TableCell className="capitalize text-muted-foreground">{item.category.toLowerCase().replace(/_/g, ' ')}</TableCell>
@@ -360,6 +349,15 @@ export default function MyComplaintsPage() {
 
         </div>
       </div>
+
+      <ComplaintDetailModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedComplaint(null);
+        }}
+        complaint={selectedComplaint}
+      />
     </>
   );
 }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Vehicle } from '@/types/tracking';
-import { Truck, User, Phone, MapPin, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Truck, User, Phone, MapPin, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { GARBAGE_TRUCK_COLORS } from '@/services/tracking/vehicle-generator';
 
 interface VehicleDetailProps {
@@ -40,13 +40,13 @@ export const VehicleDetail: React.FC<VehicleDetailProps> = ({ vehicle, onClose }
               </div>
               <Badge
                 style={{ backgroundColor: GARBAGE_TRUCK_COLORS[vehicle.status] }}
-                className="text-white"
+                className="text-white font-semibold"
               >
-                {vehicle.status}
+                {vehicle.isDeviated ? 'deviated' : vehicle.status}
               </Badge>
             </div>
             {onClose && (
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground">
                 ✕
               </Button>
             )}
@@ -56,22 +56,22 @@ export const VehicleDetail: React.FC<VehicleDetailProps> = ({ vehicle, onClose }
         <CardContent className="pt-6 space-y-6">
           {/* Driver Information */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+            <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
               Driver Information
             </h3>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <User className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Driver Name</p>
-                  <p className="font-semibold">{vehicle.driverName}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">Driver Name</p>
+                  <p className="font-semibold text-sm">{vehicle.driverName}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Contact</p>
-                  <p className="font-semibold">{vehicle.driverPhone}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">Contact</p>
+                  <p className="font-semibold text-sm">{vehicle.driverPhone}</p>
                 </div>
               </div>
             </div>
@@ -79,29 +79,29 @@ export const VehicleDetail: React.FC<VehicleDetailProps> = ({ vehicle, onClose }
 
           {/* Route Information */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+            <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
               Route Details
             </h3>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <MapPin className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Ward</p>
-                  <p className="font-semibold">{route.wardName}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">Ward Code / Name</p>
+                  <p className="font-semibold text-sm">{route.wardCode} - {route.wardName}</p>
                 </div>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Route Progress</p>
                 <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span>{vehicle.distanceCovered.toFixed(1)}</span>
+                  <div className="flex justify-between text-xs font-medium">
+                    <span>{vehicle.distanceCovered.toFixed(1)} km</span>
                     <span className="text-muted-foreground">{route.totalDistance.toFixed(1)} km</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
                     <motion.div
-                      className="bg-gradient-to-r from-primary to-primary/80 h-2 rounded-full"
+                      className={`h-2 rounded-full ${vehicle.isDeviated ? 'bg-orange-500' : 'bg-gradient-to-r from-primary to-primary/80'}`}
                       initial={{ width: 0 }}
-                      animate={{ width: `${routeProgress}%` }}
+                      animate={{ width: `${Math.min(100, routeProgress)}%` }}
                       transition={{ duration: 0.5 }}
                     />
                   </div>
@@ -110,68 +110,63 @@ export const VehicleDetail: React.FC<VehicleDetailProps> = ({ vehicle, onClose }
             </div>
           </div>
 
-          {/* Checkpoint Progress */}
+          {/* Path Status & Deviations */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-              Checkpoints
+            <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
+              Route Path Status
             </h3>
-            <div className="space-y-2">
-              {route.checkpoints.map((checkpoint, index) => (
-                <motion.div
-                  key={checkpoint.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="flex items-center gap-2 text-sm"
-                >
-                  {checkpoint.status === 'completed' ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                  ) : checkpoint.status === 'skipped' ? (
-                    <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  ) : (
-                    <div className="w-4 h-4 rounded-full border-2 border-amber-500 flex-shrink-0" />
-                  )}
-                  <span className="flex-1">{checkpoint.name}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {checkpoint.status}
-                  </Badge>
-                </motion.div>
-              ))}
-            </div>
+            {vehicle.isDeviated ? (
+              <div className="bg-orange-500/10 border border-orange-500/20 text-orange-600 rounded-lg p-3 flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-bold">Deviation Alert</p>
+                  <p className="mt-1 leading-relaxed">
+                    Vehicle has strayed from the assigned planned path. An orange deviation line is active to track its actual coordinates.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-lg p-3 flex items-start gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-bold">On Planned Path</p>
+                  <p className="mt-1 leading-relaxed">
+                    The vehicle is following its assigned ward collection route correctly.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Performance Metrics */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+            <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
               Performance
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">Speed</p>
-                <p className="text-xl font-bold">{vehicle.speed}</p>
-                <p className="text-xs text-muted-foreground">km/h</p>
+                <p className="text-[10px] text-muted-foreground uppercase mb-1">Speed</p>
+                <p className="text-xl font-bold">{vehicle.speed} <span className="text-xs font-normal text-muted-foreground">km/h</span></p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">Efficiency</p>
-                <p className="text-xl font-bold" style={{ color: GARBAGE_TRUCK_COLORS.collecting }}>
-                  {vehicle.efficiency}%
-                </p>
+                <p className="text-[10px] text-muted-foreground uppercase mb-1">Efficiency</p>
+                <p className="text-xl font-bold text-emerald-600">{vehicle.efficiency}%</p>
               </div>
             </div>
 
             {/* Capacity */}
-            <div>
+            <div className="pt-2">
               <p className="text-xs text-muted-foreground mb-2">Capacity Usage</p>
               <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>{(vehicle.capacityUsed / 1000).toFixed(1)}</span>
-                  <span className="text-muted-foreground">{vehicle.capacity / 1000} liters</span>
+                <div className="flex justify-between text-xs font-medium">
+                  <span>{(vehicle.capacityUsed / 1000).toFixed(1)} tons</span>
+                  <span className="text-muted-foreground">{(vehicle.capacity / 1000).toFixed(1)} tons capacity</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
                   <motion.div
                     className="bg-gradient-to-r from-amber-400 to-amber-600 h-2 rounded-full"
                     initial={{ width: 0 }}
-                    animate={{ width: `${capacityUsage}%` }}
+                    animate={{ width: `${Math.min(100, capacityUsage)}%` }}
                     transition={{ duration: 0.5 }}
                   />
                 </div>
@@ -181,7 +176,7 @@ export const VehicleDetail: React.FC<VehicleDetailProps> = ({ vehicle, onClose }
 
           {/* Last Update */}
           <div className="pt-3 border-t">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground">
               Last update: {new Date(vehicle.lastUpdate).toLocaleTimeString()}
             </p>
           </div>

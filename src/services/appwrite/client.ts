@@ -323,7 +323,10 @@ export const complaintService = {
 
   async create(complaint: Partial<Complaint>): Promise<Complaint> {
     const docId = complaint.id || ID.unique();
+    const now = new Date().toISOString();
     const data: any = {
+      createdAt: now,
+      updatedAt: now,
       ...complaint,
       location: stringifyJSON(complaint.location),
       timeline: stringifyJSON((complaint as any).timeline || []),

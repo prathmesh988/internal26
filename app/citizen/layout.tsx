@@ -5,6 +5,8 @@ import { useUserStore } from '@/store';
 import { AppSidebarCitizen } from '@/components/app-sidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
+import { ChatPanel } from '@/components/chat/chat-panel';
+
 export default function CitizenLayout({
   children,
 }: {
@@ -38,6 +40,7 @@ export default function CitizenLayout({
       <AppSidebarCitizen />
       <SidebarInset>
         {children}
+        <ChatPanel />
       </SidebarInset>
     </SidebarProvider>
   );

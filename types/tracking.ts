@@ -1,24 +1,14 @@
 // Vehicle tracking types and interfaces
 
 export type VehicleStatus = 'collecting' | 'idle' | 'delayed' | 'maintenance' | 'completed';
-export type CheckpointStatus = 'pending' | 'active' | 'completed' | 'skipped';
 export type AlertSeverity = 'info' | 'warning' | 'critical';
-export type AnomalyType = 'deviation' | 'delay' | 'missed_checkpoint' | 'maintenance_alert' | 'efficiency_drop';
+export type AnomalyType = 'deviation' | 'delay' | 'maintenance_alert' | 'efficiency_drop';
 
 export interface Coordinates {
   latitude: number;
   longitude: number;
 }
 
-export interface Checkpoint {
-  id: string;
-  name: string;
-  coordinates: Coordinates;
-  status: CheckpointStatus;
-  completedAt?: number; // timestamp
-  expectedTime: number; // expected arrival time in seconds from start
-  actualTime?: number; // actual arrival time in seconds from start
-}
 
 export interface Route {
   id: string;
@@ -26,10 +16,9 @@ export interface Route {
   wardName: string;
   startPoint: Coordinates;
   endPoint: Coordinates;
-  checkpoints: Checkpoint[];
   totalDistance: number; // km
   estimatedDuration: number; // minutes
-  coordinates: Coordinates[]; // polyline for route visualization
+  coordinates: Coordinates[]; // planned route polyline
 }
 
 export interface Vehicle {
@@ -40,8 +29,6 @@ export interface Vehicle {
   status: VehicleStatus;
   currentPosition: Coordinates;
   currentRoute: Route;
-  checkpointsCompleted: number;
-  totalCheckpoints: number;
   speed: number; // km/h
   bearing: number; // degrees 0-360
   capacity: number; // liters
@@ -50,6 +37,8 @@ export interface Vehicle {
   lastUpdate: number; // timestamp
   estimatedCompletionTime?: number; // timestamp
   distanceCovered: number; // km
+  isDeviated: boolean; // whether vehicle is currently off its route
+  deviationPath: Coordinates[]; // breadcrumb trail when deviated
 }
 
 export interface Alert {
@@ -68,8 +57,6 @@ export interface MetricSnapshot {
   activeVehicles: number;
   routesInProgress: number;
   routesCompleted: number;
-  checkpointsCompleted: number;
-  totalCheckpoints: number;
   delayedPickups: number;
   averageEfficiency: number;
   totalDistanceCovered: number;
@@ -89,8 +76,6 @@ export interface TrackingContextType {
   state: TrackingState;
   updateVehiclePosition: (vehicleId: string, position: Coordinates) => void;
   updateVehicleStatus: (vehicleId: string, status: VehicleStatus) => void;
-  completeCheckpoint: (vehicleId: string, checkpointId: string) => void;
-  skipCheckpoint: (vehicleId: string, checkpointId: string) => void;
   addAlert: (alert: Alert) => void;
   resolveAlert: (alertId: string) => void;
   startSimulation: () => void;

@@ -14,6 +14,7 @@ export type ComplaintCategory = 'MISSED_PICKUP' | 'OVERFLOW' | 'SPILL' | 'ILLEGA
 export interface Complaint {
   id: string;
   citizenId: string;
+  filedByCitizenId?: string;
   ward: string;
   wardCode: string;
   category: ComplaintCategory;

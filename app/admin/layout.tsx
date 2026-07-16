@@ -5,6 +5,8 @@ import { useUserStore } from '@/store';
 import { AppSidebarAdmin } from '@/components/app-sidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
+import { ChatPanel } from '@/components/chat/chat-panel';
+
 export default function AdminLayout({
   children,
 }: {
@@ -38,6 +40,7 @@ export default function AdminLayout({
       <AppSidebarAdmin />
       <SidebarInset>
         {children}
+        <ChatPanel />
       </SidebarInset>
     </SidebarProvider>
   );
