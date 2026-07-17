@@ -26,6 +26,29 @@ export class TrackingEngine {
     this.vehicles = vehicles;
     this.routes = routes;
     this.alerts = [];
+
+    // Generate initial alerts for vehicles that start in a deviated state
+    for (const vehicle of this.vehicles) {
+      if (vehicle.isDeviated) {
+        this.generateDeviation(vehicle);
+      }
+    }
+  }
+
+  /**
+   * Resolve an alert and update corresponding vehicle deviation status
+   */
+  public resolveAlert(alertId: string): void {
+    const alert = this.alerts.find(a => a.id === alertId);
+    if (alert) {
+      alert.resolved = true;
+      const vehicle = this.vehicles.find(v => v.id === alert.vehicleId);
+      if (vehicle && alert.type === 'deviation') {
+        vehicle.isDeviated = false;
+        vehicle.status = 'collecting';
+        vehicle.deviationPath = [];
+      }
+    }
   }
 
   /**
@@ -200,16 +223,17 @@ export class TrackingEngine {
   }
 
   private autoResolveAlerts(): void {
-    const alertTimeout = 300;
+    const alertTimeout = 300; // 300 seconds
 
     for (const alert of this.alerts) {
-      if (!alert.resolved && this.simulationTick - Math.floor(alert.timestamp / 1000) > alertTimeout) {
+      if (!alert.resolved && Date.now() - alert.timestamp > alertTimeout * 1000) {
         alert.resolved = true;
         // Also clear deviation flag when alert auto-resolves
         const vehicle = this.vehicles.find(v => v.id === alert.vehicleId);
         if (vehicle && alert.type === 'deviation') {
           vehicle.isDeviated = false;
           vehicle.status = 'collecting';
+          vehicle.deviationPath = [];
         }
       }
     }

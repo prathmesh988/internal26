@@ -38,6 +38,60 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
   const status = (complaint.status || 'OPEN').toUpperCase();
   const priority = (complaint.priority || 'MEDIUM').toUpperCase();
 
+  const TIMELINE_STAGES = [
+    { title: 'Complaint Reported', desc: 'Citizen submitted ticket details' },
+    { title: 'AI Complaint Analysis', desc: 'Category and priority validated' },
+    { title: 'Ticket Created', desc: 'Registered in municipal database' },
+    { title: 'Ward Identified', desc: 'Routed to ward command center' },
+    { title: 'Officer Assigned', desc: 'Sanitation officer dispatched' },
+    { title: 'Vehicle Assigned', desc: 'Collection truck allocated' },
+    { title: 'Worker En Route', desc: 'Crew moving to target location' },
+    { title: 'Resolution Uploaded', desc: 'Before/after proof submitted' },
+    { title: 'Citizen Verification', desc: 'Awaiting citizen approval' },
+    { title: 'Complaint Closed', desc: 'Ticket marked resolved' },
+  ];
+
+  const getTimelineActiveStageIndex = (statusStr: string) => {
+    const s = statusStr.toUpperCase();
+    if (s === 'PENDING' || s === 'OPEN') return 2;
+    if (s === 'UNDER REVIEW' || s === 'UNDER_REVIEW') return 3;
+    if (s === 'ASSIGNED') return 5;
+    if (s === 'IN PROGRESS' || s === 'IN_PROGRESS') return 6;
+    if (s === 'REOPENED') return 6;
+    if (s === 'RESOLVED') return 8;
+    if (s === 'CLOSED') return 9;
+    return 2;
+  };
+
+  const getStageState = (idx: number, activeIndex: number, isReopened: boolean) => {
+    if (isReopened) {
+      if (idx === 6) return 'active';
+      if (idx < 9) return 'completed';
+      return 'pending';
+    }
+    if (idx < activeIndex) return 'completed';
+    if (idx === activeIndex) return 'active';
+    return 'pending';
+  };
+
+  const listVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -8 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.25, ease: 'easeOut' as any } },
+  };
+
+  const isReopened = status === 'REOPENED';
+  const activeIndex = getTimelineActiveStageIndex(status);
+
   const timeFormatted = complaint.createdAt
     ? new Date(complaint.createdAt).toLocaleString()
     : 'Recently';
@@ -118,6 +172,130 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                   <p className="font-semibold text-foreground">
                     {complaint.assignedToWorkerName || complaint.officer || 'Unassigned'}
                   </p>
+                </div>
+              </div>
+
+              {/* Resolution Timeline Section */}
+              <div className="space-y-2 border-t pt-4">
+                <p className="font-bold text-muted-foreground uppercase text-[9px] tracking-wider flex items-center gap-1">
+                  <ClipboardList className="size-3" /> Resolution Timeline
+                </p>
+
+                <div className="relative w-full max-w-sm mx-auto bg-muted/10 rounded-xl border p-4 overflow-hidden select-none">
+                  <div className="relative w-full h-[400px]">
+                    {/* SVG Lines behind the dots */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                      {/* Background base track (gray) */}
+                      <path
+                        d="M 24 20 V 380"
+                        fill="none"
+                        stroke="rgba(156, 163, 175, 0.2)"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                      />
+                      
+                      {/* Active progress track (emerald-500) */}
+                      <motion.path
+                        d={`M 24 20 V ${isReopened ? 340 : 20 + activeIndex * 40}`}
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 1.2, ease: "easeInOut" }}
+                      />
+
+                      {/* Fork Loop Track if Reopened (red-500 dashed) */}
+                      {isReopened && (
+                        <motion.path
+                          d="M 24 340 H 90 C 110 340, 110 260, 90 260 H 24"
+                          fill="none"
+                          stroke="#ef4444"
+                          strokeWidth={2}
+                          strokeDasharray="4 3"
+                          strokeLinecap="round"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ delay: 1.2, duration: 1.0, ease: "easeInOut" }}
+                        />
+                      )}
+                    </svg>
+
+                    {/* "Verification Rejected" bubble overlay */}
+                    {isReopened && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -5 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 1.8, duration: 0.3 }}
+                        className="absolute left-[105px] top-[300px] -translate-y-1/2 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg p-1 px-2 text-[8px] font-bold uppercase tracking-wider whitespace-nowrap shadow-sm flex items-center gap-1 z-20"
+                      >
+                        <span className="size-1 rounded-full bg-destructive animate-pulse" />
+                        Verification Rejected
+                      </motion.div>
+                    )}
+
+                    {/* Staggered Rows */}
+                    <motion.div
+                      variants={listVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className="absolute inset-0 flex flex-col justify-between h-full z-10"
+                    >
+                      {TIMELINE_STAGES.map((stage, idx) => {
+                        const stageState = getStageState(idx, activeIndex, isReopened);
+                        
+                        return (
+                          <motion.div
+                            key={stage.title}
+                            variants={itemVariants}
+                            className="flex items-center h-10 w-full"
+                          >
+                            {/* Circle Column */}
+                            <div className="w-12 flex justify-center flex-shrink-0">
+                              <div
+                                className={`size-5 rounded-full border flex items-center justify-center font-bold text-[9px] transition-all duration-300 ${
+                                  stageState === 'completed'
+                                    ? 'bg-emerald-500 border-emerald-600 text-white shadow-sm shadow-emerald-500/20'
+                                    : stageState === 'active'
+                                    ? 'bg-background border-primary text-primary ring-4 ring-primary/20 scale-110 font-extrabold animate-pulse'
+                                    : 'bg-background border-muted-foreground/30 text-muted-foreground/50'
+                                }`}
+                              >
+                                {stageState === 'completed' ? '✓' : idx + 1}
+                              </div>
+                            </div>
+
+                            {/* Label Column */}
+                            <div className="flex-1 min-w-0 pr-4">
+                              <p
+                                className={`truncate text-xs ${
+                                  stageState === 'completed'
+                                    ? 'text-foreground font-semibold'
+                                    : stageState === 'active'
+                                    ? 'text-primary font-bold'
+                                    : 'text-muted-foreground font-medium'
+                                }`}
+                              >
+                                {stage.title}
+                              </p>
+                              <p
+                                className={`truncate text-[9px] ${
+                                  stageState === 'completed'
+                                    ? 'text-muted-foreground/80'
+                                    : stageState === 'active'
+                                    ? 'text-primary/70'
+                                    : 'text-muted-foreground/40'
+                                }`}
+                              >
+                                {stage.desc}
+                              </p>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </motion.div>
+                  </div>
                 </div>
               </div>
             </motion.div>

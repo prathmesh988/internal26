@@ -21,6 +21,7 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  Store,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -73,10 +74,12 @@ const citizenNavMain: NavItem[] = [
   { title: 'Dashboard', href: '/citizen/dashboard', icon: LayoutDashboard },
   { title: 'My Complaints', href: '/citizen/my-complaints', icon: AlertCircle },
   { title: 'File Complaint', href: '/citizen/file-complaint', icon: FileText },
+  { title: 'Live Tracking', href: '/citizen/tracking', icon: Navigation },
 ];
 
 const citizenNavDocuments: NavItem[] = [
   { title: 'Rewards', href: '/citizen/rewards', icon: Award },
+  { title: 'Scrap Marketplace', href: '/citizen/marketplace', icon: Store },
 ];
 
 const citizenNavSecondary: NavItem[] = [

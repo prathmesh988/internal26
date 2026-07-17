@@ -16,18 +16,25 @@ import { ComplaintDetailModal } from '@/components/complaint-detail-modal';
 // Hardcoded complaint points for density visualization
 const hardcodedComplaints = [
   // Ward 01 - Shivaji Nagar
-  { lat: 22.7220, lng: 75.8600, weight: 3 },
-  { lat: 22.7235, lng: 75.8615, weight: 4 },
+  { lat: 22.7220, lng: 75.8600, weight: 3, wardCode: 'W01' },
+  { lat: 22.7235, lng: 75.8615, weight: 4, wardCode: 'W01' },
   // Ward 02 - Aundh
-  { lat: 22.7100, lng: 75.8450, weight: 2 },
+  { lat: 22.7100, lng: 75.8450, weight: 2, wardCode: 'W02' },
   // Ward 03 - Kothrud
-  { lat: 22.7050, lng: 75.8650, weight: 5 },
-  { lat: 22.7070, lng: 75.8670, weight: 4 },
+  { lat: 22.7050, lng: 75.8650, weight: 5, wardCode: 'W03' },
+  { lat: 22.7070, lng: 75.8670, weight: 4, wardCode: 'W03' },
   // Ward 07 - Clustered High Density Zone
-  { lat: 22.7300, lng: 75.8750, weight: 10 },
-  { lat: 22.7320, lng: 75.8770, weight: 9 },
-  { lat: 22.7285, lng: 75.8735, weight: 8 }
+  { lat: 22.7300, lng: 75.8750, weight: 10, wardCode: 'W07' },
+  { lat: 22.7320, lng: 75.8770, weight: 9, wardCode: 'W07' },
+  { lat: 22.7285, lng: 75.8735, weight: 8, wardCode: 'W07' }
 ];
+
+const matchWard = (selectedWard: string, dataWardCode: string) => {
+  if (!selectedWard || !dataWardCode) return false;
+  const selNum = selectedWard.replace(/\D/g, '');
+  const dataNum = dataWardCode.replace(/\D/g, '');
+  return parseInt(selNum, 10) === parseInt(dataNum, 10);
+};
 
 const hardcodedClusters = [
   {
@@ -113,6 +120,8 @@ interface TrackingMapProps {
   selectedVehicleId?: string;
   onVehicleClick?: (vehicleId: string) => void;
   isDark?: boolean;
+  viewMode?: 'admin' | 'citizen';
+  selectedWard?: string;
 }
 
 // Custom vehicle marker SVG icon — enlarged significantly for maximum visibility
@@ -160,10 +169,20 @@ const createVehicleIcon = (status: string, isDark: boolean = false, isSelected: 
 
 export const TrackingMap: React.FC<TrackingMapProps> = ({
   vehicles,
-  selectedVehicleId,
+  selectedVehicleId: propSelectedVehicleId,
   onVehicleClick,
   isDark = false,
+  viewMode = 'admin',
+  selectedWard,
 }) => {
+  const [internalSelectedVehicleId, setInternalSelectedVehicleId] = useState<string | undefined>();
+  const selectedVehicleId = propSelectedVehicleId !== undefined ? propSelectedVehicleId : internalSelectedVehicleId;
+
+  const handleVehicleClick = (vehicleId: string) => {
+    setInternalSelectedVehicleId(vehicleId);
+    onVehicleClick?.(vehicleId);
+  };
+
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -171,6 +190,32 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   const closeTimeoutRef = useRef<any>(null);
   const center: LatLngExpression = [22.7196, 75.8577];
   const zoom = 13;
+
+  // Filter vehicles on client side based on selected ward if viewMode is 'citizen'
+  const filteredVehicles = useMemo(() => {
+    if (viewMode === 'citizen' && selectedWard) {
+      return vehicles.filter(v => matchWard(selectedWard, v.currentRoute.wardCode));
+    }
+    return vehicles;
+  }, [vehicles, viewMode, selectedWard]);
+
+  // Filter heatmap points on client side based on selected ward if viewMode is 'citizen'
+  const filteredComplaints = useMemo(() => {
+    if (viewMode === 'citizen' && selectedWard) {
+      return hardcodedComplaints.filter(c => matchWard(selectedWard, c.wardCode));
+    }
+    return hardcodedComplaints;
+  }, [viewMode, selectedWard]);
+
+  // Filter clusters on client side based on selected ward if viewMode is 'citizen'
+  const filteredClusters = useMemo(() => {
+    if (viewMode === 'citizen' && selectedWard) {
+      return hardcodedClusters.filter(c => 
+        c.complaints.some(comp => matchWard(selectedWard, comp.wardCode))
+      );
+    }
+    return hardcodedClusters;
+  }, [viewMode, selectedWard]);
 
   const MapEvents = () => {
     const map = useMap();
@@ -211,8 +256,9 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   const routePolylines = useMemo(() => {
     const seen = new Set<string>();
     const result: { routeId: string; coords: LatLngExpression[] }[] = [];
+    const sourceVehicles = viewMode === 'citizen' ? filteredVehicles : vehicles;
 
-    for (const vehicle of vehicles) {
+    for (const vehicle of sourceVehicles) {
       const routeId = vehicle.currentRoute.id;
       if (!seen.has(routeId)) {
         seen.add(routeId);
@@ -224,17 +270,18 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
     }
 
     return result;
-  }, [vehicles]);
+  }, [vehicles, filteredVehicles, viewMode]);
 
   // Orange deviation paths — only for deviated vehicles that have breadcrumbs
   const deviationPolylines = useMemo(() => {
-    return vehicles
+    const sourceVehicles = viewMode === 'citizen' ? filteredVehicles : vehicles;
+    return sourceVehicles
       .filter(v => v.isDeviated && v.deviationPath && v.deviationPath.length > 1)
       .map(v => ({
         vehicleId: v.id,
         coords: v.deviationPath.map(c => [c.latitude, c.longitude] as LatLngExpression),
       }));
-  }, [vehicles]);
+  }, [vehicles, filteredVehicles, viewMode]);
 
   const tileUrl = isDark
     ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
@@ -269,12 +316,12 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         <TileLayer url={tileUrl} attribution={tileAttribution} />
 
         {/* ── Complaint Density Heatmap ── */}
-        <HeatmapLayer points={hardcodedComplaints} visible={showHeatmap} />
+        <HeatmapLayer points={filteredComplaints} visible={showHeatmap} />
 
         <MapEvents />
 
         {/* ── Invisible Interactive Cluster Markers for Heatmap ── */}
-        {showHeatmap && hardcodedClusters.map((cluster, idx) => (
+        {showHeatmap && filteredClusters.map((cluster, idx) => (
           <CircleMarker
             key={`cluster-marker-${idx}`}
             center={[cluster.lat, cluster.lng]}
@@ -331,12 +378,12 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
         ))}
 
         {/* ── Vehicle markers ── */}
-        {vehicles.map(vehicle => (
+        {filteredVehicles.map(vehicle => (
           <Marker
             key={vehicle.id}
             position={[vehicle.currentPosition.latitude, vehicle.currentPosition.longitude]}
             icon={createVehicleIcon(vehicle.status, isDark, selectedVehicleId === vehicle.id)}
-            eventHandlers={{ click: () => onVehicleClick?.(vehicle.id) }}
+            eventHandlers={{ click: () => handleVehicleClick(vehicle.id) }}
             riseOnHover
             zIndexOffset={selectedVehicleId === vehicle.id ? 1000 : 0}
           >
@@ -344,7 +391,9 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
               <div className="min-w-[260px] p-2 space-y-2">
                 <div>
                   <div className="font-semibold text-base">{vehicle.registrationNumber}</div>
-                  <div className="text-xs text-gray-500">{vehicle.driverName}</div>
+                  {(viewMode !== 'citizen' || selectedVehicleId === vehicle.id) && (
+                    <div className="text-xs text-gray-500">{vehicle.driverName}</div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -361,14 +410,18 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
                       {vehicle.isDeviated ? '⚠ Deviated' : vehicle.status}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-gray-500">Speed</div>
-                    <div className="font-semibold">{vehicle.speed} km/h</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500">Efficiency</div>
-                    <div className="font-semibold">{vehicle.efficiency}%</div>
-                  </div>
+                  {viewMode !== 'citizen' && (
+                    <>
+                      <div>
+                        <div className="text-gray-500">Speed</div>
+                        <div className="font-semibold">{vehicle.speed} km/h</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500">Efficiency</div>
+                        <div className="font-semibold">{vehicle.efficiency}%</div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Route progress bar */}

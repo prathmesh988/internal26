@@ -43,7 +43,7 @@ graph TD
 1. **Auth & Role Layer**:
    Users authenticate via Appwrite. A custom `authService` checks the user's ID against the `citizens` or `workers` collections to dynamically determine their layout access (`/citizen/*` vs `/admin/*`).
 2. **Citizen Portal (`/citizen`)**:
-   Provides complaints reporting with photo uploads, real-time complaint status timelines, and a points ledger showing earned rewards.
+   Provides complaints reporting with photo uploads, real-time complaint status timelines, a points ledger showing earned rewards, and a dedicated **Live Fleet Tracking Page (`/citizen/tracking`)** allowing citizens to view garbage truck movements and complaint density heatmaps scoped to their selected ward.
 3. **Municipal Operations Portal (`/admin`)**:
    Enables administrators to view active complaints, review routes efficiency, resolve operational alerts, and track garbage truck fleets.
 4. **Live Fleet Tracking Engine**:
@@ -68,7 +68,8 @@ e:/internal26/
 │   │   ├── dashboard/                # Citizen dashboard, stats, and activity
 │   │   ├── file-complaint/           # Create complaint with photo & GPS
 │   │   ├── my-complaints/            # Interactive complaints list
-│   │   └── rewards/                  # Citizen points balance and history
+│   │   ├── rewards/                  # Citizen points balance and history
+│   │   └── tracking/                 # Scoped citizen fleet tracking & heatmap page
 │   ├── globals.css                   # Global styles & Tailwind entry
 │   ├── layout.tsx                    # Core root HTML layout
 │   └── page.tsx                      # Public-facing Landing Page
@@ -121,3 +122,9 @@ e:/internal26/
 3. If an anomaly is triggered, a vehicle status changes to `delayed` and `isDeviated` becomes `true`.
 4. The engine adds a cumulative lateral offset to its position to simulate driving off-route, and records a breadcrumb path (`deviationPath`).
 5. The **Tracking Map** reads this state and renders a bold orange line representing the deviation trail, alongside a warning in the **Alerts Panel**.
+
+### Citizen Scoped Fleet Tracking
+1. The citizen opens the dedicated Live Tracking page (`/citizen/tracking`).
+2. A dropdown selector is provided to choose a ward, defaulting to their home ward ("Ward 03 - Kothrud / Khajrana").
+3. Changing the selection filters vehicles, planned routes, deviation paths, and complaint density heatmap points to the selected ward client-side.
+4. In citizen view, operational-only parameters (speed, fuel levels, efficiency) and driver details are hidden by default. Selecting (clicking) a truck dynamically reveals the assigned driver's name in the popup.

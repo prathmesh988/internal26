@@ -15,6 +15,8 @@ import {
   LogOut,
   Sun,
   Moon,
+  Navigation,
+  Store,
 } from 'lucide-react';
 
 interface NavItem {
@@ -40,9 +42,19 @@ const navItems: NavItem[] = [
     icon: <FileText className="w-5 h-5" />,
   },
   {
+    href: '/citizen/tracking',
+    label: 'Live Tracking',
+    icon: <Navigation className="w-5 h-5" />,
+  },
+  {
     href: '/citizen/rewards',
     label: 'Rewards',
     icon: <Award className="w-5 h-5" />,
+  },
+  {
+    href: '/citizen/marketplace',
+    label: 'Scrap Marketplace',
+    icon: <Store className="w-5 h-5" />,
   },
 ];
 
