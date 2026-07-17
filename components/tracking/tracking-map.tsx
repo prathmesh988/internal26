@@ -15,18 +15,18 @@ import { ComplaintDetailModal } from '@/components/complaint-detail-modal';
 
 // Hardcoded complaint points for density visualization
 const hardcodedComplaints = [
-  // Ward 01 - Shivaji Nagar
-  { lat: 22.7220, lng: 75.8600, weight: 3, wardCode: 'W01' },
-  { lat: 22.7235, lng: 75.8615, weight: 4, wardCode: 'W01' },
-  // Ward 02 - Aundh
-  { lat: 22.7100, lng: 75.8450, weight: 2, wardCode: 'W02' },
-  // Ward 03 - Kothrud
-  { lat: 22.7050, lng: 75.8650, weight: 5, wardCode: 'W03' },
-  { lat: 22.7070, lng: 75.8670, weight: 4, wardCode: 'W03' },
-  // Ward 07 - Clustered High Density Zone
-  { lat: 22.7300, lng: 75.8750, weight: 10, wardCode: 'W07' },
-  { lat: 22.7320, lng: 75.8770, weight: 9, wardCode: 'W07' },
-  { lat: 22.7285, lng: 75.8735, weight: 8, wardCode: 'W07' }
+  // Ward 01 - Sirpur
+  { lat: 22.7060, lng: 75.8210, weight: 3, wardCode: 'W01' },
+  { lat: 22.7075, lng: 75.8225, weight: 4, wardCode: 'W01' },
+  // Ward 02 - Chandan Nagar
+  { lat: 22.6960, lng: 75.8260, weight: 2, wardCode: 'W02' },
+  // Ward 03 - Kalani Nagar
+  { lat: 22.7310, lng: 75.8310, weight: 5, wardCode: 'W03' },
+  { lat: 22.7330, lng: 75.8330, weight: 4, wardCode: 'W03' },
+  // Ward 04 - Sukhdev Nagar
+  { lat: 22.7360, lng: 75.8360, weight: 10, wardCode: 'W04' },
+  { lat: 22.7380, lng: 75.8380, weight: 9, wardCode: 'W04' },
+  { lat: 22.7345, lng: 75.8345, weight: 8, wardCode: 'W04' }
 ];
 
 const matchWard = (selectedWard: string, dataWardCode: string) => {
@@ -38,38 +38,38 @@ const matchWard = (selectedWard: string, dataWardCode: string) => {
 
 const hardcodedClusters = [
   {
-    wardName: 'Shivaji Nagar (Ward 01)',
-    lat: 22.7228,
-    lng: 75.8608,
+    wardName: 'Ward 01 - Sirpur',
+    lat: 22.7058,
+    lng: 75.8208,
     complaints: [
-      { id: 'CMP-101', title: 'Overflowing commercial garbage pile', description: 'Overspill has blocked the main pavement for 2 days. Tipper skipped Lane 3.', category: 'OVERFLOW', ward: 'Ward 01 - Shivaji Nagar', wardCode: 'W01', status: 'OPEN', priority: 'HIGH', createdAt: '2026-07-16T14:30:00Z', assignedToWorkerName: 'Amit Verma' },
-      { id: 'CMP-102', title: 'Missed tipper morning pickup', description: 'Collection vehicle skipped Lane 4 morning route. High odor starting to accumulate.', category: 'MISSED_PICKUP', ward: 'Ward 01 - Shivaji Nagar', wardCode: 'W01', status: 'ASSIGNED', priority: 'MEDIUM', createdAt: '2026-07-16T18:45:00Z', assignedToWorkerName: 'Riya Singh' }
+      { id: 'CMP-101', title: 'Overflowing commercial garbage pile', description: 'Overspill has blocked the main pavement for 2 days. Tipper skipped Lane 3.', category: 'OVERFLOW', ward: 'Ward 01 - Sirpur', wardCode: 'W01', status: 'OPEN', priority: 'HIGH', createdAt: '2026-07-16T14:30:00Z', assignedToWorkerName: 'Amit Verma' },
+      { id: 'CMP-102', title: 'Missed tipper morning pickup', description: 'Collection vehicle skipped Lane 4 morning route. High odor starting to accumulate.', category: 'MISSED_PICKUP', ward: 'Ward 01 - Sirpur', wardCode: 'W01', status: 'ASSIGNED', priority: 'MEDIUM', createdAt: '2026-07-16T18:45:00Z', assignedToWorkerName: 'Riya Singh' }
     ]
   },
   {
-    wardName: 'Aundh (Ward 02)',
-    lat: 22.7100,
-    lng: 75.8450,
+    wardName: 'Ward 02 - Chandan Nagar',
+    lat: 22.6960,
+    lng: 75.8260,
     complaints: [
-      { id: 'CMP-201', title: 'Plastic packaging spill', description: 'Scattered commercial wrappers and box waste near gate 3.', category: 'SPILL', ward: 'Ward 02 - Aundh', wardCode: 'W02', status: 'IN_PROGRESS', priority: 'LOW', createdAt: '2026-07-16T10:15:00Z', assignedToWorkerName: 'Neha Sharma' }
+      { id: 'CMP-201', title: 'Plastic packaging spill', description: 'Scattered commercial wrappers and box waste near gate 3.', category: 'SPILL', ward: 'Ward 02 - Chandan Nagar', wardCode: 'W02', status: 'IN_PROGRESS', priority: 'LOW', createdAt: '2026-07-16T10:15:00Z', assignedToWorkerName: 'Neha Sharma' }
     ]
   },
   {
-    wardName: 'Kothrud (Ward 03)',
-    lat: 22.7060,
-    lng: 75.8660,
+    wardName: 'Ward 03 - Kalani Nagar',
+    lat: 22.7310,
+    lng: 75.8310,
     complaints: [
-      { id: 'CMP-301', title: 'Hazardous paint dumping', description: 'Several cans of chemical paints dumped illegally next to standard bin slots.', category: 'ILLEGAL_DUMPING', ward: 'Ward 03 - Kothrud', wardCode: 'W03', status: 'ESCALATED', priority: 'CRITICAL', createdAt: '2026-07-16T08:00:00Z', assignedToWorkerName: 'Suresh Yadav' }
+      { id: 'CMP-301', title: 'Hazardous paint dumping', description: 'Several cans of chemical paints dumped illegally next to standard bin slots.', category: 'ILLEGAL_DUMPING', ward: 'Ward 03 - Kalani Nagar', wardCode: 'W03', status: 'ESCALATED', priority: 'CRITICAL', createdAt: '2026-07-16T08:00:00Z', assignedToWorkerName: 'Suresh Yadav' }
     ]
   },
   {
-    wardName: 'Hot Zone (Ward 07)',
-    lat: 22.7302,
-    lng: 75.8752,
+    wardName: 'Ward 04 - Sukhdev Nagar',
+    lat: 22.7362,
+    lng: 75.8362,
     complaints: [
-      { id: 'CMP-701', title: 'Multiple market bins overflow', description: 'Sanitation compactor skipped market bins. Over 500kg waste piles up.', category: 'OVERFLOW', ward: 'Ward 07', wardCode: 'W07', status: 'OPEN', priority: 'HIGH', createdAt: '2026-07-16T16:20:00Z', assignedToWorkerName: 'Karan Shah' },
-      { id: 'CMP-702', title: 'Illegal industrial dumping', description: 'Unidentified vehicle spotted dumping packaging boxes directly in market lanes.', category: 'ILLEGAL_DUMPING', ward: 'Ward 07', wardCode: 'W07', status: 'ASSIGNED', priority: 'HIGH', createdAt: '2026-07-16T17:10:00Z', assignedToWorkerName: 'Deepak Rao' },
-      { id: 'CMP-703', title: 'Non-segregated waste dump', description: 'E-waste lithium-ion batteries and chargers mixed in with green wet scraps.', category: 'SEGREGATION', ward: 'Ward 07', wardCode: 'W07', status: 'OPEN', priority: 'CRITICAL', createdAt: '2026-07-16T19:00:00Z', assignedToWorkerName: 'Sneha Kulkarni' }
+      { id: 'CMP-701', title: 'Multiple market bins overflow', description: 'Sanitation compactor skipped market bins. Over 500kg waste piles up.', category: 'OVERFLOW', ward: 'Ward 04 - Sukhdev Nagar', wardCode: 'W04', status: 'OPEN', priority: 'HIGH', createdAt: '2026-07-16T16:20:00Z', assignedToWorkerName: 'Karan Shah' },
+      { id: 'CMP-702', title: 'Illegal industrial dumping', description: 'Unidentified vehicle spotted dumping packaging boxes directly in market lanes.', category: 'ILLEGAL_DUMPING', ward: 'Ward 04 - Sukhdev Nagar', wardCode: 'W04', status: 'ASSIGNED', priority: 'HIGH', createdAt: '2026-07-16T17:10:00Z', assignedToWorkerName: 'Deepak Rao' },
+      { id: 'CMP-703', title: 'Non-segregated waste dump', description: 'E-waste lithium-ion batteries and chargers mixed in with green wet scraps.', category: 'SEGREGATION', ward: 'Ward 04 - Sukhdev Nagar', wardCode: 'W04', status: 'OPEN', priority: 'CRITICAL', createdAt: '2026-07-16T19:00:00Z', assignedToWorkerName: 'Sneha Kulkarni' }
     ]
   }
 ];
