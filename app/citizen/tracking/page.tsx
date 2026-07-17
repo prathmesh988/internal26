@@ -57,14 +57,12 @@ export default function CitizenTrackingPage() {
                     onChange={(e) => setSelectedWard(e.target.value)}
                     className="bg-background border rounded-lg px-3 py-1.5 text-sm font-semibold outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
                   >
-                    <option value="W01">Shivaji Nagar (Ward 01)</option>
-                    <option value="W02">Aundh (Ward 02)</option>
-                    <option value="W03">Kothrud (Ward 03)</option>
-                    <option value="W04">Hadapsar (Ward 04)</option>
-                    <option value="W05">Katraj (Ward 05)</option>
-                    <option value="W06">Viman Nagar (Ward 06)</option>
-                    <option value="W07">Hot Zone (Ward 07)</option>
-                    <option value="W08">Pardesipura (Ward 08)</option>
+                    <option value="W01">Ward 01 – Sirpur</option>
+                    <option value="W02">Ward 02 – Chandan Nagar</option>
+                    <option value="W03">Ward 03 – Kalani Nagar</option>
+                    <option value="W04">Ward 04 – Sukhdev Nagar</option>
+                    <option value="W05">Ward 05 – Raj Nagar</option>
+                    <option value="W06">Ward 06 – Malharganj</option>
                   </select>
                 </div>
               </div>

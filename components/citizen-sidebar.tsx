@@ -17,6 +17,7 @@ import {
   Moon,
   Navigation,
   Store,
+  Trophy,
 } from 'lucide-react';
 
 interface NavItem {
@@ -45,6 +46,11 @@ const navItems: NavItem[] = [
     href: '/citizen/tracking',
     label: 'Live Tracking',
     icon: <Navigation className="w-5 h-5" />,
+  },
+  {
+    href: '/citizen/leaderboard',
+    label: 'Ward Leaderboard',
+    icon: <Trophy className="w-5 h-5" />,
   },
   {
     href: '/citizen/rewards',
