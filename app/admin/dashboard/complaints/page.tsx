@@ -125,7 +125,7 @@ export default function DashboardComplaintsPage() {
                         {item.priority}
                       </Badge>
                       <Badge variant="outline" className={getStatusBadgeClass(item.status)}>
-                        {item.status.replace(/_/g, ' ')}
+                        {(item.status || 'OPEN').replace(/_/g, ' ')}
                       </Badge>
                     </div>
 

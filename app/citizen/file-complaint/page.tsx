@@ -61,6 +61,26 @@ export default function FileComplaintPage() {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    const fileInput = document.getElementById('photo') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
   const { execute: submitComplaint, loading, error } = useAsyncAction(
     (data: any) => {
       const selectedWard = (wardsData || []).find((w: any) => w.code === data.wardCode);
@@ -75,7 +95,7 @@ export default function FileComplaintPage() {
         escalationCount: 0,
         createdAt: now,
         updatedAt: now,
-      });
+      }, selectedFile);
     },
     {
       onSuccess: () => {
@@ -219,6 +239,36 @@ export default function FileComplaintPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                     placeholder="Street name, landmark, or nearby shop"
                   />
+                </div>
+
+                {/* Photo Upload */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="photo">Attach Photo (Optional)</Label>
+                  <Input
+                    id="photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="cursor-pointer"
+                  />
+                  {previewUrl && (
+                    <div className="relative mt-2 size-36 border rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="object-cover size-full"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 size-6 rounded-full"
+                        onClick={handleRemoveFile}
+                      >
+                        <span className="text-xs">×</span>
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Category (Rebuilt with shadcn Combobox) */}

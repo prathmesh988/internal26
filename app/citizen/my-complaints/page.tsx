@@ -267,8 +267,8 @@ export default function MyComplaintsPage() {
                               </div>
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <PriorityBadge priority={complaint.priority as any} />
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusStyles[complaint.status] || ''}`}>
-                                  {complaint.status.replace(/_/g, ' ')}
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusStyles[complaint.status || ''] || ''}`}>
+                                  {(complaint.status || 'OPEN').replace(/_/g, ' ')}
                                 </span>
                               </div>
                             </div>
@@ -318,26 +318,30 @@ export default function MyComplaintsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {masterList.map((item) => (
-                            <TableRow
-                              key={item.id}
-                              className="cursor-pointer hover:bg-muted/50 transition-colors"
-                              onClick={() => {
-                                setSelectedComplaint(item);
-                                setIsModalOpen(true);
-                              }}
-                            >
-                              <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
-                              <TableCell className="font-medium">{item.title}</TableCell>
-                              <TableCell className="capitalize text-muted-foreground">{item.category.toLowerCase().replace(/_/g, ' ')}</TableCell>
-                              <TableCell>
-                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusStyles[item.status] || ''}`}>
-                                  {item.status.replace(/_/g, ' ')}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
-                            </TableRow>
-                          ))}
+                          {masterList.map((item) => {
+                            const displayCategory = (item.category || '').toLowerCase().replace(/_/g, ' ');
+                            const displayStatus = (item.status || 'OPEN').replace(/_/g, ' ');
+                            return (
+                              <TableRow
+                                key={item.id}
+                                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                onClick={() => {
+                                  setSelectedComplaint(item);
+                                  setIsModalOpen(true);
+                                }}
+                              >
+                                <TableCell className="font-mono text-xs font-semibold">{item.id}</TableCell>
+                                <TableCell className="font-medium">{item.title}</TableCell>
+                                <TableCell className="capitalize text-muted-foreground">{displayCategory}</TableCell>
+                                <TableCell>
+                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusStyles[item.status] || ''}`}>
+                                    {displayStatus}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>

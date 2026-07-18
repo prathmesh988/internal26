@@ -17,6 +17,15 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
   onClose,
   complaint,
 }) => {
+  const [hasImageError, setHasImageError] = React.useState(false);
+
+  const complaintId = complaint?.id || '';
+  const complaintImageUrl = complaint?.imageUrl || '';
+
+  React.useEffect(() => {
+    setHasImageError(false);
+  }, [complaintId, complaintImageUrl]);
+
   if (!complaint) return null;
 
   const priorityColors: Record<string, string> = {
@@ -91,6 +100,10 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
 
   const isReopened = status === 'REOPENED';
   const activeIndex = getTimelineActiveStageIndex(status);
+
+  const imageUrl = complaintImageUrl && complaintImageUrl.startsWith('http')
+    ? complaintImageUrl
+    : `https://fra.cloud.appwrite.io/v1/storage/buckets/6a5a2cf60011a9969530/files/complaint-${complaintId}/view?project=6a54010f001e2cdc301d`;
 
   const timeFormatted = complaint.createdAt
     ? new Date(complaint.createdAt).toLocaleString()
@@ -173,6 +186,27 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                     {complaint.assignedToWorkerName || complaint.officer || 'Unassigned'}
                   </p>
                 </div>
+              </div>
+
+              {/* Attachment Image Proof */}
+              <div className="space-y-1.5 border-t pt-4">
+                <p className="font-bold text-muted-foreground uppercase text-[9px] tracking-wider flex items-center gap-1">
+                  <ClipboardList className="size-3" /> Attachment Proof
+                </p>
+                {!hasImageError ? (
+                  <div className="relative w-full h-44 rounded-xl border overflow-hidden bg-muted flex items-center justify-center">
+                    <img
+                      src={imageUrl}
+                      alt="Complaint proof"
+                      className="object-cover size-full"
+                      onError={() => setHasImageError(true)}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full py-4 text-center border border-dashed rounded-xl text-muted-foreground/60 bg-muted/10 font-semibold text-[11px]">
+                    No image proof attached
+                  </div>
+                )}
               </div>
 
               {/* Resolution Timeline Section */}
