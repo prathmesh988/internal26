@@ -372,7 +372,7 @@ export const complaintService = {
     }
   },
 
-  async create(complaint: Partial<Complaint>): Promise<Complaint> {
+  async create(complaint: Partial<Complaint>, file?: File | null): Promise<Complaint> {
     const docId = complaint.id || ID.unique();
     const now = new Date().toISOString();
     const data: any = {
@@ -383,8 +383,21 @@ export const complaintService = {
       timeline: stringifyJSON((complaint as any).timeline || []),
     };
     delete data.id;
+    delete data.imageUrl; // Ensure we don't store any imageUrl in database
 
     const response = await databases.createDocument(DATABASE_ID, 'complaints', docId, data);
+
+    if (file) {
+      try {
+        const fileId = `complaint-${response.$id}`;
+        const fileExtension = file.name.split('.').pop() || 'jpg';
+        const renamedFile = new File([file], `${fileId}.${fileExtension}`, { type: file.type });
+        await storage.createFile('6a5a2cf60011a9969530', fileId, renamedFile);
+      } catch (uploadError) {
+        console.error("Failed to upload complaint image to Appwrite bucket:", uploadError);
+      }
+    }
+
     return mapComplaint(response);
   },
 

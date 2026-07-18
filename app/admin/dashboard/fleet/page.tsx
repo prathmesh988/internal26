@@ -84,10 +84,10 @@ export default function DashboardFleetPage() {
                     <CardContent className="p-4 pt-0 space-y-3">
                       <div className="flex justify-between items-center text-xs">
                         <span className="capitalize text-muted-foreground">
-                          {v.type.replace(/_/g, ' ').toLowerCase()}
+                          {(v.type || '').replace(/_/g, ' ').toLowerCase()}
                         </span>
                         <Badge variant="outline" className={getVehicleStatusBadge(v.status)}>
-                          {v.status.replace(/_/g, ' ')}
+                          {(v.status || 'collecting').replace(/_/g, ' ')}
                         </Badge>
                       </div>
 

@@ -22,6 +22,7 @@ import { useTheme } from 'next-themes';
 
 export default function TrackingDashboardPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>();
+  const [optMode, setOptMode] = useState<'none' | 'auto' | 'manual'>('none');
   const [mounted, setMounted] = useState(false);
   const { theme } = useTheme();
 
@@ -126,6 +127,79 @@ export default function TrackingDashboardPage() {
           <MetricsPanel metrics={metrics} />
         </motion.div>
 
+        {/* Route Optimization Demo Panel */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.15 }}
+        >
+          <Card className="border border-primary/20 shadow-sm bg-gradient-to-br from-card to-muted/20">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="text-lg font-bold">AI Route Optimization Simulator</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Compare routing sequence options for <strong>Ward 03 - Kalani Nagar</strong> (route-ward-3) collection lanes.
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between pt-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button 
+                  onClick={() => setOptMode('none')}
+                  variant={optMode === 'none' ? "default" : "outline"}
+                  size="sm"
+                  className="font-semibold"
+                >
+                  Standard Route
+                </Button>
+                <Button 
+                  onClick={() => setOptMode('manual')}
+                  variant={optMode === 'manual' ? "default" : "outline"}
+                  size="sm"
+                  className="font-semibold"
+                >
+                  Manual Re-routing
+                </Button>
+                <Button 
+                  onClick={() => setOptMode('auto')}
+                  variant={optMode === 'auto' ? "default" : "outline"}
+                  size="sm"
+                  className="font-semibold"
+                >
+                  Automatic AI Mode
+                </Button>
+              </div>
+
+              {optMode !== 'none' && (
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="grid grid-cols-3 gap-4 border-l pl-4 border-border text-xs"
+                >
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Distance</span>
+                    <span className="text-emerald-500 font-bold text-sm">
+                      {optMode === 'auto' ? '-12.4%' : '-5.1%'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Est. Time</span>
+                    <span className="text-emerald-500 font-bold text-sm">
+                      {optMode === 'auto' ? '-8.5 min' : '-3.2 min'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Fuel Cost</span>
+                    <span className="text-emerald-500 font-bold text-sm">
+                      {optMode === 'auto' ? '-₹340/day' : '-₹120/day'}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* Map and Panels */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Map */}
@@ -146,11 +220,12 @@ export default function TrackingDashboardPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0 h-[calc(100%-70px)]">
-                <TrackingMap
+                 <TrackingMap
                   vehicles={vehicles}
                   selectedVehicleId={selectedVehicleId}
                   onVehicleClick={setSelectedVehicleId}
                   isDark={theme === 'dark'}
+                  optMode={optMode}
                 />
               </CardContent>
             </Card>
