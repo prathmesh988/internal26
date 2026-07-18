@@ -134,9 +134,8 @@ export default function RoutesPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardDescription className="text-sm font-medium">{card.label}</CardDescription>
-                    <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      card.up ? 'bg-emerald-500/15 text-emerald-600' : 'bg-destructive/10 text-destructive'
-                    }`}>
+                    <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${card.up ? 'bg-emerald-500/15 text-emerald-600' : 'bg-destructive/10 text-destructive'
+                      }`}>
                       {card.up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
                       {card.trend}
                     </span>
@@ -148,54 +147,28 @@ export default function RoutesPage() {
           </div>
 
           {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Route Efficiency</CardTitle>
-                <CardDescription>Historical fleet route performance (%)</CardDescription>
-              </CardHeader>
-              <CardContent className="px-2">
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={efficiencyData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} domain={[60, 100]} />
-                    <Tooltip
-                      contentStyle={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: 12 }}
-                      cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-                    />
-                    <Bar dataKey="efficiency" name="Efficiency %" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Route Efficiency</CardTitle>
+              <CardDescription>Historical fleet route performance (%)</CardDescription>
+            </CardHeader>
+            <CardContent className="px-2">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={efficiencyData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} domain={[60, 100]} />
+                  <Tooltip
+                    contentStyle={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: 12 }}
+                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                  />
+                  <Bar dataKey="efficiency" name="Efficiency %" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Routes by Ward</CardTitle>
-                <CardDescription>Route distribution across sectors</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="divide-y divide-border">
-                  {routesByWard.slice(0, 6).map((item: any, idx: number) => {
-                    const max = Math.max(...routesByWard.map((r: any) => r.value));
-                    return (
-                      <div key={idx} className="py-2.5 flex items-center gap-3">
-                        <span className="text-sm font-medium w-10 flex-shrink-0">{item.name}</span>
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full"
-                            style={{ width: `${(item.value / max) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-semibold text-muted-foreground w-6 text-right">{item.value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+
 
           {/* Tabular Lists */}
           <Tabs defaultValue="active-routes" className="w-full space-y-4">

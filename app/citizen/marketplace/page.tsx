@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SiteHeader } from '@/components/site-header';
 import { CheckCircle2, ChevronRight, Store, Sparkles, Upload, X } from 'lucide-react';
+import { marketplaceService } from '@/services/appwrite/client';
+import { useUserStore } from '@/store';
 
 const categories = [
   { id: 'paper', name: 'Paper', price: '₹8/kg', desc: 'Newspapers, books, office paper, magazines' },
@@ -24,12 +26,15 @@ const categories = [
 
 export default function ScrapMarketplacePage() {
   const router = useRouter();
+  const { userId } = useUserStore();
   const [category, setCategory] = useState(categories[0].id);
   const [weight, setWeight] = useState('');
   const [address, setAddress] = useState('4, Karve Road, Ward 03 – Kothrud, Indore');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -48,10 +53,31 @@ export default function ScrapMarketplacePage() {
     setPhotoPreview(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!weight || !address) return;
-    setIsSubmitted(true);
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const citizenId = userId || 'citizen-001';
+      const categoryEnum = category.toUpperCase() === 'EWASTE' ? 'E_WASTE' : category.toUpperCase();
+
+      await marketplaceService.createListing({
+        citizenId,
+        category: categoryEnum,
+        estimatedWeight: parseFloat(weight),
+        address,
+      }, photo);
+
+      setIsSubmitted(true);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to submit pickup request. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -60,6 +86,7 @@ export default function ScrapMarketplacePage() {
     setAddress('4, Karve Road, Ward 03 – Kothrud, Indore');
     removePhoto();
     setIsSubmitted(false);
+    setError(null);
   };
 
   return (
@@ -118,6 +145,12 @@ export default function ScrapMarketplacePage() {
                 <Card className="border">
                   <CardContent className="pt-6 space-y-4">
                     <form onSubmit={handleSubmit} className="space-y-4">
+                      {error && (
+                        <div className="p-3 text-xs rounded-lg border border-destructive/20 bg-destructive/10 text-destructive leading-relaxed">
+                          {error}
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <label htmlFor="scrap-category" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Select Scrap Category
@@ -125,8 +158,9 @@ export default function ScrapMarketplacePage() {
                         <select
                           id="scrap-category"
                           value={category}
+                          disabled={loading}
                           onChange={(e) => setCategory(e.target.value)}
-                          className="w-full bg-background border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
+                          className="w-full bg-background border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground disabled:opacity-50"
                         >
                           {categories.map((c) => (
                             <option key={c.id} value={c.id}>
@@ -146,6 +180,7 @@ export default function ScrapMarketplacePage() {
                           placeholder="e.g. 5"
                           min="1"
                           required
+                          disabled={loading}
                           value={weight}
                           onChange={(e) => setWeight(e.target.value)}
                           className="text-sm"
@@ -161,6 +196,7 @@ export default function ScrapMarketplacePage() {
                           type="text"
                           placeholder="Enter your address"
                           required
+                          disabled={loading}
                           value={address}
                           onChange={(e) => setAddress(e.target.value)}
                           className="text-sm"
@@ -174,7 +210,7 @@ export default function ScrapMarketplacePage() {
                         <div className="flex items-center gap-4">
                           <label
                             htmlFor="scrap-photo"
-                            className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-3 cursor-pointer hover:bg-muted/40 transition-colors w-full h-20 border-muted-foreground/20 text-muted-foreground hover:text-foreground"
+                            className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-3 cursor-pointer hover:bg-muted/40 transition-colors w-full h-20 border-muted-foreground/20 text-muted-foreground hover:text-foreground disabled:opacity-50"
                           >
                             <div className="flex flex-col items-center justify-center text-center">
                               <Upload className="size-5 mb-1" />
@@ -184,6 +220,7 @@ export default function ScrapMarketplacePage() {
                               id="scrap-photo"
                               type="file"
                               accept="image/*"
+                              disabled={loading}
                               className="hidden"
                               onChange={handlePhotoChange}
                             />
@@ -195,7 +232,8 @@ export default function ScrapMarketplacePage() {
                             <button
                               type="button"
                               onClick={removePhoto}
-                              className="absolute top-1 right-1 p-0.5 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow transition-colors"
+                              disabled={loading}
+                              className="absolute top-1 right-1 p-0.5 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow transition-colors disabled:opacity-50"
                             >
                               <X className="size-3" />
                             </button>
@@ -203,9 +241,9 @@ export default function ScrapMarketplacePage() {
                         )}
                       </div>
 
-                      <Button type="submit" className="w-full flex items-center justify-center gap-1">
-                        Request Pickup
-                        <ChevronRight className="size-4" />
+                      <Button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-1">
+                        {loading ? 'Submitting...' : 'Request Pickup'}
+                        {!loading && <ChevronRight className="size-4" />}
                       </Button>
                     </form>
                   </CardContent>

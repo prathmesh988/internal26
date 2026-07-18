@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUserStore } from '@/store';
+import * as Collapsible from '@radix-ui/react-collapsible';
 import {
   LayoutDashboard,
   Navigation,
@@ -12,7 +13,6 @@ import {
   Users,
   Settings,
   HelpCircle,
-  Search,
   Truck,
   BarChart3,
   FileText,
@@ -21,7 +21,9 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  ChevronRight,
   Store,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -34,6 +36,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -51,12 +56,21 @@ interface NavItem {
   title: string;
   href: string;
   icon: React.ElementType;
+  children?: NavItem[];
 }
 
 const adminNavMain: NavItem[] = [
-  { title: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+  {
+    title: 'Dashboard',
+    href: '/admin/dashboard',
+    icon: LayoutDashboard,
+    children: [
+      { title: 'Recent Complaints', href: '/admin/dashboard/complaints', icon: AlertCircle },
+      { title: 'Fleet Status', href: '/admin/dashboard/fleet', icon: Truck },
+      { title: 'Ward Performance', href: '/admin/dashboard/wards', icon: MapPin },
+    ],
+  },
   { title: 'Fleet Tracking', href: '/admin/tracking', icon: Navigation },
-  { title: 'Analytics', href: '/admin/dashboard', icon: BarChart3 },
 ];
 
 const adminNavDocuments: NavItem[] = [
@@ -71,7 +85,15 @@ const adminNavSecondary: NavItem[] = [
 ];
 
 const citizenNavMain: NavItem[] = [
-  { title: 'Dashboard', href: '/citizen/dashboard', icon: LayoutDashboard },
+  {
+    title: 'Dashboard',
+    href: '/citizen/dashboard',
+    icon: LayoutDashboard,
+    children: [
+      { title: 'Community Complaints', href: '/citizen/dashboard/community', icon: Sparkles },
+      { title: 'Your Complaints', href: '/citizen/dashboard/personal', icon: AlertCircle },
+    ],
+  },
   { title: 'My Complaints', href: '/citizen/my-complaints', icon: AlertCircle },
   { title: 'File Complaint', href: '/citizen/file-complaint', icon: FileText },
   { title: 'Live Tracking', href: '/citizen/tracking', icon: Navigation },
@@ -181,19 +203,9 @@ function AppSidebarInner({
           <SidebarGroupLabel>Home</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navMain.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <SidebarMenuItem key={`${item.title}-${item.href}`}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {navMain.map((item) => (
+                <CollapsibleNavItem key={`${item.title}-${item.href}`} item={item} pathname={pathname} />
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -203,19 +215,9 @@ function AppSidebarInner({
           <SidebarGroupLabel>Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navDocuments.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                return (
-                  <SidebarMenuItem key={`${item.title}-${item.href}`}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {navDocuments.map((item) => (
+                <CollapsibleNavItem key={`${item.title}-${item.href}`} item={item} pathname={pathname} />
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -286,5 +288,77 @@ function AppSidebarInner({
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+// ── Collapsible nav item (with optional children) ─────────────────────────────
+
+function CollapsibleNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
+  const isActive = pathname === item.href;
+  const hasChildren = item.children && item.children.length > 0;
+  const isChildActive = hasChildren && item.children!.some((c) => pathname === c.href);
+  const [open, setOpen] = React.useState(isActive || isChildActive);
+
+  // Keep open when navigating to a child
+  React.useEffect(() => {
+    if (isChildActive) setOpen(true);
+  }, [isChildActive]);
+
+  if (!hasChildren) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+          <Link href={item.href}>
+            <item.icon />
+            <span>{item.title}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <Collapsible.Root open={open} onOpenChange={setOpen} asChild>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={isActive || isChildActive} tooltip={item.title}>
+          <Link href={item.href}>
+            <item.icon />
+            <span>{item.title}</span>
+          </Link>
+        </SidebarMenuButton>
+
+        <Collapsible.Trigger asChild>
+          <button
+            className="absolute right-1 top-1.5 flex size-5 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            aria-label={open ? 'Collapse' : 'Expand'}
+          >
+            <ChevronRight
+              className={cn(
+                'size-3.5 transition-transform duration-200',
+                open && 'rotate-90'
+              )}
+            />
+          </button>
+        </Collapsible.Trigger>
+
+        <Collapsible.Content className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
+          <SidebarMenuSub>
+            {item.children!.map((child) => {
+              const childActive = pathname === child.href;
+              return (
+                <SidebarMenuSubItem key={child.href}>
+                  <SidebarMenuSubButton asChild isActive={childActive} size="sm">
+                    <Link href={child.href}>
+                      <child.icon />
+                      <span>{child.title}</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              );
+            })}
+          </SidebarMenuSub>
+        </Collapsible.Content>
+      </SidebarMenuItem>
+    </Collapsible.Root>
   );
 }
