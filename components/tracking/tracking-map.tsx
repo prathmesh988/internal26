@@ -122,6 +122,8 @@ interface TrackingMapProps {
   isDark?: boolean;
   viewMode?: 'admin' | 'citizen';
   selectedWard?: string;
+  isOptimized?: boolean;
+  optMode?: 'none' | 'auto' | 'manual';
 }
 
 // Custom vehicle marker SVG icon — enlarged significantly for maximum visibility
@@ -174,6 +176,8 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   isDark = false,
   viewMode = 'admin',
   selectedWard,
+  isOptimized = false,
+  optMode = 'none',
 }) => {
   const [internalSelectedVehicleId, setInternalSelectedVehicleId] = useState<string | undefined>();
   const selectedVehicleId = propSelectedVehicleId !== undefined ? propSelectedVehicleId : internalSelectedVehicleId;
@@ -184,6 +188,9 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   };
 
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [selectedWardFilter, setSelectedWardFilter] = useState<string>('all');
+  const [showDeviatedOnly, setShowDeviatedOnly] = useState<boolean>(false);
+
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hoveredCluster, setHoveredCluster] = useState<any>(null);
@@ -191,13 +198,21 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   const center: LatLngExpression = [22.7196, 75.8577];
   const zoom = 13;
 
-  // Filter vehicles on client side based on selected ward if viewMode is 'citizen'
+  // Filter vehicles on client side based on selected ward or deviation state
   const filteredVehicles = useMemo(() => {
-    if (viewMode === 'citizen' && selectedWard) {
-      return vehicles.filter(v => matchWard(selectedWard, v.currentRoute.wardCode));
+    let result = vehicles;
+    
+    const activeWard = viewMode === 'citizen' ? selectedWard : (selectedWardFilter === 'all' ? undefined : selectedWardFilter);
+    if (activeWard) {
+      result = result.filter(v => matchWard(activeWard, v.currentRoute.wardCode));
     }
-    return vehicles;
-  }, [vehicles, viewMode, selectedWard]);
+    
+    if (showDeviatedOnly) {
+      result = result.filter(v => v.isDeviated);
+    }
+    
+    return result;
+  }, [vehicles, viewMode, selectedWard, selectedWardFilter, showDeviatedOnly]);
 
   // Filter heatmap points on client side based on selected ward if viewMode is 'citizen'
   const filteredComplaints = useMemo(() => {
@@ -255,33 +270,63 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
   // Deduplicate planned route polylines by route ID
   const routePolylines = useMemo(() => {
     const seen = new Set<string>();
-    const result: { routeId: string; coords: LatLngExpression[] }[] = [];
-    const sourceVehicles = viewMode === 'citizen' ? filteredVehicles : vehicles;
+    const result: { routeId: string; coords: LatLngExpression[]; isOptimizedRoute?: boolean; optColor?: string }[] = [];
+    const sourceVehicles = filteredVehicles;
 
     for (const vehicle of sourceVehicles) {
       const routeId = vehicle.currentRoute.id;
       if (!seen.has(routeId)) {
         seen.add(routeId);
-        const coords: LatLngExpression[] = vehicle.currentRoute.coordinates.map(
-          c => [c.latitude, c.longitude] as LatLngExpression
-        );
-        result.push({ routeId, coords });
+        
+        let coords: LatLngExpression[];
+        let isOpt = false;
+        let optColor = "#1e3a8a";
+        
+        if (optMode === 'auto' && routeId === 'route-ward-3') {
+          coords = [
+            [22.7300, 75.8300],
+            [22.7320, 75.8315],
+            [22.7340, 75.8340],
+            [22.7365, 75.8365],
+            [22.7385, 75.8385],
+            [22.7400, 75.8400]
+          ];
+          isOpt = true;
+          optColor = "#10b981"; // green
+        } else if (optMode === 'manual' && routeId === 'route-ward-3') {
+          coords = [
+            [22.7300, 75.8300],
+            [22.7310, 75.8310],
+            [22.7335, 75.8325],
+            [22.7360, 75.8350],
+            [22.7375, 75.8380],
+            [22.7400, 75.8400]
+          ];
+          isOpt = true;
+          optColor = "#f97316"; // orange/amber
+        } else {
+          coords = vehicle.currentRoute.coordinates.map(
+            c => [c.latitude, c.longitude] as LatLngExpression
+          );
+        }
+
+        result.push({ routeId, coords, isOptimizedRoute: isOpt, optColor });
       }
     }
 
     return result;
-  }, [vehicles, filteredVehicles, viewMode]);
+  }, [vehicles, filteredVehicles, viewMode, optMode]);
 
   // Orange deviation paths — only for deviated vehicles that have breadcrumbs
   const deviationPolylines = useMemo(() => {
-    const sourceVehicles = viewMode === 'citizen' ? filteredVehicles : vehicles;
+    const sourceVehicles = filteredVehicles;
     return sourceVehicles
       .filter(v => v.isDeviated && v.deviationPath && v.deviationPath.length > 1)
       .map(v => ({
         vehicleId: v.id,
         coords: v.deviationPath.map(c => [c.latitude, c.longitude] as LatLngExpression),
       }));
-  }, [vehicles, filteredVehicles, viewMode]);
+  }, [filteredVehicles]);
 
   const tileUrl = isDark
     ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
@@ -293,18 +338,59 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
 
   return (
     <div className="relative w-full h-full">
-      {/* Floating Toggle Controls */}
-      <div className="absolute top-4 right-4 z-[1000] bg-background/95 backdrop-blur border rounded-xl p-2.5 px-3 shadow-md flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="toggle-heatmap"
-          checked={showHeatmap}
-          onChange={(e) => setShowHeatmap(e.target.checked)}
-          className="size-4 cursor-pointer accent-primary"
-        />
-        <label htmlFor="toggle-heatmap" className="text-xs font-bold cursor-pointer select-none text-foreground">
-          Show Complaint Heatmap
-        </label>
+      {/* Floating Toggle & Filter Controls */}
+      <div className="absolute top-4 right-4 z-[1000] bg-background/95 backdrop-blur border rounded-xl p-3 shadow-md flex flex-col gap-2.5 min-w-[210px] max-w-[240px]">
+        {/* Heatmap Toggle */}
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="toggle-heatmap"
+            checked={showHeatmap}
+            onChange={(e) => setShowHeatmap(e.target.checked)}
+            className="size-4 cursor-pointer accent-primary"
+          />
+          <label htmlFor="toggle-heatmap" className="text-xs font-bold cursor-pointer select-none text-foreground">
+            Show Complaint Heatmap
+          </label>
+        </div>
+
+        {/* Deviated Only Toggle */}
+        {viewMode !== 'citizen' && (
+          <div className="flex items-center gap-2 border-t pt-2 border-border/55">
+            <input
+              type="checkbox"
+              id="toggle-deviated"
+              checked={showDeviatedOnly}
+              onChange={(e) => setShowDeviatedOnly(e.target.checked)}
+              className="size-4 cursor-pointer accent-primary"
+            />
+            <label htmlFor="toggle-deviated" className="text-xs font-bold cursor-pointer select-none text-foreground">
+              Off-Route / Deviated Only
+            </label>
+          </div>
+        )}
+
+        {/* Ward Selector */}
+        {viewMode !== 'citizen' && (
+          <div className="flex flex-col gap-1 border-t pt-2 border-border/55">
+            <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+              Filter by Ward
+            </label>
+            <select
+              value={selectedWardFilter}
+              onChange={(e) => setSelectedWardFilter(e.target.value)}
+              className="text-xs p-1.5 rounded-lg border bg-background text-foreground font-semibold cursor-pointer outline-none hover:bg-muted/30 transition-colors"
+            >
+              <option value="all">All Wards</option>
+              <option value="W01">Ward 01 - Sirpur</option>
+              <option value="W02">Ward 02 - Chandan Nagar</option>
+              <option value="W03">Ward 03 - Kalani Nagar</option>
+              <option value="W04">Ward 04 - Sukhdev Nagar</option>
+              <option value="W05">Ward 05 - Raj Nagar</option>
+              <option value="W06">Ward 06 - Malharganj</option>
+            </select>
+          </div>
+        )}
       </div>
 
       <MapContainer
@@ -355,13 +441,13 @@ export const TrackingMap: React.FC<TrackingMapProps> = ({
           />
         ))}
 
-        {/* ── Planned route polylines (Extra Bold, Deep Midnight Navy Blue) ── */}
-        {routePolylines.map(({ routeId, coords }) => (
+        {/* ── Planned route polylines (Extra Bold, Deep Midnight Navy Blue / Green or Orange for optimized) ── */}
+        {routePolylines.map(({ routeId, coords, isOptimizedRoute, optColor }) => (
           <Polyline
             key={routeId}
             positions={coords}
-            color="#1e3a8a"
-            weight={8}
+            color={optColor || "#1e3a8a"}
+            weight={isOptimizedRoute ? 10 : 8}
             opacity={0.9}
           />
         ))}

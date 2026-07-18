@@ -366,7 +366,7 @@ export default function ComplaintsPage() {
                               <TableCell className="text-muted-foreground">{item.officer}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className={statusStyles[item.status] || ''}>
-                                  {item.status.replace(/_/g, ' ')}
+                                  {(item.status || 'OPEN').replace(/_/g, ' ')}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-muted-foreground text-xs">{item.created}</TableCell>
@@ -455,7 +455,7 @@ export default function ComplaintsPage() {
                               <TableCell className="text-muted-foreground">{item.officer}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className={statusStyles[item.status] || ''}>
-                                  {item.status.replace(/_/g, ' ')}
+                                  {(item.status || 'OPEN').replace(/_/g, ' ')}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-muted-foreground text-xs">{item.created}</TableCell>
